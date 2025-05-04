@@ -56,7 +56,14 @@ const GameTitleManager: React.FC = () => {
       setTitle(game.title);
       setDescription(game.description || '');
       setImageUrl(game.imageUrl || '');
-      setDifficulties(game.difficulties || [...DEFAULT_DIFFICULTIES]);
+      
+      // 修正: difficulties が存在することを確認
+      if (game.difficulties && Array.isArray(game.difficulties)) {
+        setDifficulties([...game.difficulties]);
+      } else {
+        // デフォルト値を使用
+        setDifficulties([...DEFAULT_DIFFICULTIES]);
+      }
     } else {
       // 新規作成モード
       setIsEditing(false);
@@ -119,23 +126,39 @@ const GameTitleManager: React.FC = () => {
       setError(null);
       
       const customId = gameId.trim() || `game_${Date.now()}`;
-      const gameData = {
-        id: isEditing ? currentGame!.id : customId,
+      
+      // 修正: difficulties を正しくフォーマット
+      const formattedDifficulties = difficulties.map((diff, index) => ({
+        id: diff.id,
+        name: diff.name,
+        color: diff.color,
+        order: diff.order !== undefined ? diff.order : index
+      }));
+      
+      // 重要: 空の文字列は null に変換（undefined は使用しない）
+      const descriptionValue = description.trim() || null;
+      const imageUrlValue = imageUrl.trim() || null;
+      
+      // Firestoreに保存するデータを作成
+      const firestoreData = {
         title: title.trim(),
-        description: description.trim() || null,
-        imageUrl: imageUrl.trim() || null,
+        description: descriptionValue,
+        imageUrl: imageUrlValue,
         songCount: isEditing ? currentGame?.songCount || 0 : 0,
-        lastUpdated: new Date(),
-        difficulties: difficulties
+        difficulties: formattedDifficulties,
+        lastUpdated: serverTimestamp()
       };
+      
+      // デバッグ用にコンソールに表示
+      console.log('Saving game with data:', firestoreData);
       
       if (isEditing && currentGame) {
         // 既存ゲームの更新
-        await setDoc(doc(db, GAMES_COLLECTION, currentGame.id), gameData);
+        await setDoc(doc(db, GAMES_COLLECTION, currentGame.id), firestoreData);
         setSuccess('ゲーム情報を更新しました');
       } else {
         // 新規ゲームの作成
-        await setDoc(doc(db, GAMES_COLLECTION, customId), gameData);
+        await setDoc(doc(db, GAMES_COLLECTION, customId), firestoreData);
         setSuccess('新しいゲームを追加しました');
       }
       
@@ -357,7 +380,7 @@ const GameTitleManager: React.FC = () => {
                   label="順序"
                   size="small"
                   type="number"
-                  value={diff.order}
+                  value={diff.order !== undefined ? diff.order : index}
                   onChange={(e) => handleDifficultyChange(index, 'order', parseInt(e.target.value) || 0)}
                   sx={{ mr: 1, width: '70px' }}
                 />

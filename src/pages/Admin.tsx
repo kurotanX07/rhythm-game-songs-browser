@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
-import { Container, Typography, Box, Paper, Tabs, Tab, Alert } from '@mui/material';
+// src/pages/Admin.tsx の最初の部分に追加
+import React, { useState, useEffect } from 'react';
+import { Container, Typography, Box, Paper, Tabs, Tab, Alert, Button } from '@mui/material';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
 import ResponsiveLayout from '../components/layout/ResponsiveLayout';
@@ -10,6 +11,53 @@ import ExcelUploader from '../components/admin/ExcelUploader';
 import StructureAnalyzer from '../components/admin/StructureAnalyzer';
 import { useAuth } from '../contexts/AuthContext';
 import { useSongData } from '../contexts/SongDataContext';
+import { auth } from '../services/firebase'; // Firebase authをインポート
+
+// 管理者権限チェック用コンポーネント
+const AdminCheck: React.FC = () => {
+  const { currentUser, isAdmin } = useAuth();
+  const [tokenInfo, setTokenInfo] = useState<any>(null);
+  
+  // ログイン中のユーザー情報とトークンを取得
+  const checkAdminStatus = async () => {
+    if (currentUser) {
+      try {
+        const tokenResult = await currentUser.getIdTokenResult(true); // トークンを強制更新
+        setTokenInfo({
+          uid: currentUser.uid,
+          email: currentUser.email,
+          isAdmin: !!tokenResult.claims.admin,
+          claims: tokenResult.claims,
+          token: tokenResult.token.substring(0, 20) + '...' // トークンの一部のみ表示
+        });
+      } catch (error) {
+        console.error('トークン取得エラー:', error);
+      }
+    }
+  };
+
+  return (
+    <Box sx={{ mb: 3, p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
+      <Typography variant="h6" gutterBottom>認証情報確認</Typography>
+      <Typography>ユーザーID: {currentUser?.uid || 'ログインなし'}</Typography>
+      <Typography>メール: {currentUser?.email || 'ログインなし'}</Typography>
+      <Typography>管理者フラグ: {isAdmin ? 'はい' : 'いいえ'}</Typography>
+      
+      {tokenInfo && (
+        <Box mt={2}>
+          <Typography variant="subtitle2">トークン情報:</Typography>
+          <pre style={{ backgroundColor: '#eee', padding: 10, overflow: 'auto', fontSize: '0.8rem' }}>
+            {JSON.stringify(tokenInfo, null, 2)}
+          </pre>
+        </Box>
+      )}
+      
+      <Button variant="outlined" size="small" onClick={checkAdminStatus} sx={{ mt: 1 }}>
+        トークン情報を表示
+      </Button>
+    </Box>
+  );
+};
 
 interface TabPanelProps {
   children?: React.ReactNode;

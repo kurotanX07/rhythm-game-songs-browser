@@ -13,5 +13,5 @@ export interface Game {
   imageUrl?: string;
   songCount: number;
   lastUpdated: Date;
-  difficulties: DifficultyDefinition[]; // 追加：ゲームごとの難易度定義
+  difficulties: DifficultyDefinition[]; // 必須フィールド
 }

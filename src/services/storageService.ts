@@ -1,17 +1,34 @@
-// src/services/songService.ts - getGames と getGame 関数を更新
+// src/services/storageService.ts
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from './firebase';
+import { Game } from '../types/Game';
+import { collection, getDocs, getDoc, doc } from 'firebase/firestore';
+import { db } from './firebase';
 import { DEFAULT_DIFFICULTIES } from '../contexts/SongDataContext';
 
-// コレクション名の定義
+// Upload Excel file to Firebase Storage
+export async function uploadExcelFile(gameId: string, file: File): Promise<string> {
+  // Create reference for the file path
+  const storageRef = ref(storage, `excel/${gameId}/${file.name}`);
+  
+  // Upload the file
+  const snapshot = await uploadBytes(storageRef, file);
+  
+  // Get download URL (optional, depending on your needs)
+  const downloadURL = await getDownloadURL(snapshot.ref);
+  
+  return downloadURL;
+}
+
+// Collection names
 const GAMES_COLLECTION = 'games';
-const SONGS_COLLECTION = 'songs';
-const EXCEL_STRUCTURES_COLLECTION = 'excelStructures';
-const UPDATE_STATUS_COLLECTION = 'updateStatus';
 
 /**
- * ゲーム一覧を取得する
+ * Get games with proper difficulties property
  */
 export async function getGames(): Promise<Game[]> {
   const gamesSnapshot = await getDocs(collection(db, GAMES_COLLECTION));
+  
   return gamesSnapshot.docs.map(doc => {
     const data = doc.data();
     return {
@@ -21,13 +38,13 @@ export async function getGames(): Promise<Game[]> {
       imageUrl: data.imageUrl,
       songCount: data.songCount,
       lastUpdated: data.lastUpdated?.toDate() || new Date(),
-      difficulties: data.difficulties || [...DEFAULT_DIFFICULTIES] // デフォルト値を設定
+      difficulties: data.difficulties || [...DEFAULT_DIFFICULTIES] // Add default difficulties
     };
   });
 }
 
 /**
- * ゲーム情報を取得する
+ * Get a single game with proper difficulties property
  */
 export async function getGame(gameId: string): Promise<Game | null> {
   const gameDoc = await getDoc(doc(db, GAMES_COLLECTION, gameId));
@@ -44,6 +61,6 @@ export async function getGame(gameId: string): Promise<Game | null> {
     imageUrl: data.imageUrl,
     songCount: data.songCount,
     lastUpdated: data.lastUpdated?.toDate() || new Date(),
-    difficulties: data.difficulties || [...DEFAULT_DIFFICULTIES] // デフォルト値を設定
+    difficulties: data.difficulties || [...DEFAULT_DIFFICULTIES] // Add default difficulties
   };
 }

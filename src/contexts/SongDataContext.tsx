@@ -1,3 +1,4 @@
+// src/contexts/SongDataContext.tsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Game, DifficultyDefinition } from '../types/Game';
 import { Song } from '../types/Song';
@@ -58,11 +59,23 @@ export function SongDataProvider({ children }: SongDataProviderProps): JSX.Eleme
         setError(null);
         
         const fetchedGames = await getGames();
-        setGames(fetchedGames);
+        
+        // 修正: 必ず difficulties プロパティを持つことを確認
+        const gamesWithDifficulties = fetchedGames.map(game => {
+          if (!game.difficulties || !Array.isArray(game.difficulties) || game.difficulties.length === 0) {
+            return {
+              ...game,
+              difficulties: [...DEFAULT_DIFFICULTIES]
+            };
+          }
+          return game;
+        });
+        
+        setGames(gamesWithDifficulties);
         
         // 最初のゲームを選択
-        if (fetchedGames.length > 0 && !selectedGameId) {
-          setSelectedGameId(fetchedGames[0].id);
+        if (gamesWithDifficulties.length > 0 && !selectedGameId) {
+          setSelectedGameId(gamesWithDifficulties[0].id);
         }
       } catch (err) {
         console.error('ゲームデータ取得エラー:', err);
@@ -130,7 +143,19 @@ export function SongDataProvider({ children }: SongDataProviderProps): JSX.Eleme
       
       // ゲーム一覧を再取得
       const fetchedGames = await getGames();
-      setGames(fetchedGames);
+      
+      // 修正: 必ず difficulties プロパティを持つことを確認
+      const gamesWithDifficulties = fetchedGames.map(game => {
+        if (!game.difficulties || !Array.isArray(game.difficulties) || game.difficulties.length === 0) {
+          return {
+            ...game,
+            difficulties: [...DEFAULT_DIFFICULTIES]
+          };
+        }
+        return game;
+      });
+      
+      setGames(gamesWithDifficulties);
       
       // 楽曲一覧を再取得（選択中のゲームがある場合）
       if (selectedGameId) {
@@ -155,7 +180,19 @@ export function SongDataProvider({ children }: SongDataProviderProps): JSX.Eleme
       
       // ゲーム一覧を再取得
       const fetchedGames = await getGames();
-      setGames(fetchedGames);
+      
+      // 修正: 必ず difficulties プロパティを持つことを確認
+      const gamesWithDifficulties = fetchedGames.map(game => {
+        if (!game.difficulties || !Array.isArray(game.difficulties) || game.difficulties.length === 0) {
+          return {
+            ...game,
+            difficulties: [...DEFAULT_DIFFICULTIES]
+          };
+        }
+        return game;
+      });
+      
+      setGames(gamesWithDifficulties);
       
       // 楽曲一覧を再取得（選択中のゲームがある場合）
       if (selectedGameId) {
@@ -178,7 +215,7 @@ export function SongDataProvider({ children }: SongDataProviderProps): JSX.Eleme
     error,
     selectGame,
     refreshData,
-    refreshDataAdmin  // 追加
+    refreshDataAdmin
   };
   
   return (
