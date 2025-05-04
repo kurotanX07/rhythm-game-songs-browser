@@ -1,3 +1,4 @@
+// src/pages/SongBrowser.tsx
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
@@ -11,6 +12,7 @@ import GameSelector from '../components/user/GameSelector';
 import FilterControls, { FilterOptions } from '../components/user/FilterControls';
 import SongList from '../components/user/SongList';
 import { useSongData } from '../contexts/SongDataContext';
+import { Game } from '../types/Game';
 
 const SongBrowser: React.FC = () => {
   const { games, selectedGameId, songs, loading, error, selectGame } = useSongData();
@@ -24,6 +26,11 @@ const SongBrowser: React.FC = () => {
   
   const location = useLocation();
   const navigate = useNavigate();
+  
+  // 現在選択中のゲーム
+  const selectedGame: Game | null = selectedGameId 
+    ? games.find(g => g.id === selectedGameId) || null 
+    : null;
   
   // Handle URL query params for game selection
   useEffect(() => {
@@ -83,8 +90,15 @@ const SongBrowser: React.FC = () => {
             </Box>
           ) : (
             <>
-              <FilterControls onFilterChange={handleFilterChange} />
-              <SongList songs={songs} filters={filters} />
+              <FilterControls 
+                onFilterChange={handleFilterChange} 
+                game={selectedGame}
+              />
+              <SongList 
+                songs={songs} 
+                filters={filters} 
+                game={selectedGame}
+              />
             </>
           )}
         </Container>

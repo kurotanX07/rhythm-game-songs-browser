@@ -1,23 +1,32 @@
+// src/components/user/SongList.tsx
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Box, Card, CardContent, Typography, Chip, Grid,
+  Box, Typography, Chip, Grid,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow,
   Paper, Tooltip, IconButton
 } from '@mui/material';
 import YouTubeIcon from '@mui/icons-material/YouTube';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import { Song, DifficultyLevel } from '../../types/Song';
+import { Song } from '../../types/Song';
+import { Game, DifficultyDefinition } from '../../types/Game';
 import { FilterOptions } from './FilterControls';
 
 interface SongListProps {
   songs: Song[];
   filters: FilterOptions;
+  game: Game | null;
 }
 
-const SongList: React.FC<SongListProps> = ({ songs, filters }) => {
+const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
   const navigate = useNavigate();
+  
+  // ゲームの難易度を順序でソート
+  const sortedDifficulties = useMemo(() => {
+    if (!game?.difficulties) return [];
+    return [...game.difficulties].sort((a, b) => a.order - b.order);
+  }, [game]);
   
   // 曲のフィルタリング
   const filteredSongs = useMemo(() => {
@@ -37,7 +46,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters }) => {
       if (filters.difficulty !== 'ALL') {
         const diffInfo = song.difficulties[filters.difficulty];
         
-        if (!diffInfo.level) {
+        if (!diffInfo || !diffInfo.level) {
           return false;
         }
         
@@ -82,24 +91,9 @@ const SongList: React.FC<SongListProps> = ({ songs, filters }) => {
     }
   };
   
-  // 難易度表示のバッジの色設定
-  const getDifficultyColor = (difficulty: DifficultyLevel): string => {
-    switch (difficulty) {
-      case 'EASY':
-        return '#43a047';
-      case 'NORMAL':
-        return '#1976d2';
-      case 'HARD':
-        return '#ff9800';
-      case 'EXPERT':
-        return '#d32f2f';
-      case 'MASTER':
-        return '#9c27b0';
-      case 'APPEND':
-        return '#607d8b';
-      default:
-        return '#9e9e9e';
-    }
+  // 難易度定義を取得
+  const getDifficultyDefinition = (id: string): DifficultyDefinition | undefined => {
+    return game?.difficulties.find(d => d.id === id);
   };
   
   if (filteredSongs.length === 0) {
@@ -120,12 +114,9 @@ const SongList: React.FC<SongListProps> = ({ songs, filters }) => {
             <TableCell>No.</TableCell>
             <TableCell>楽曲名</TableCell>
             <TableCell>アーティスト</TableCell>
-            <TableCell align="center">EASY</TableCell>
-            <TableCell align="center">NORMAL</TableCell>
-            <TableCell align="center">HARD</TableCell>
-            <TableCell align="center">EXPERT</TableCell>
-            <TableCell align="center">MASTER</TableCell>
-            <TableCell align="center">APPEND</TableCell>
+            {sortedDifficulties.map(diff => (
+              <TableCell key={diff.id} align="center">{diff.name}</TableCell>
+            ))}
             <TableCell align="center">詳細</TableCell>
           </TableRow>
         </TableHead>
@@ -146,38 +137,41 @@ const SongList: React.FC<SongListProps> = ({ songs, filters }) => {
               </TableCell>
               <TableCell>{song.info.artist || '-'}</TableCell>
               
-              {(['EASY', 'NORMAL', 'HARD', 'EXPERT', 'MASTER', 'APPEND'] as DifficultyLevel[]).map(diff => (
-                <TableCell key={diff} align="center">
-                  {song.difficulties[diff].level ? (
-                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                      <Chip
-                        label={song.difficulties[diff].level}
-                        size="small"
-                        sx={{
-                          bgcolor: getDifficultyColor(diff),
-                          color: 'white',
-                          fontWeight: 'bold',
-                          mb: 0.5
-                        }}
-                      />
-                      
-                      {song.difficulties[diff].youtubeUrl && (
-                        <Tooltip title="YouTubeで視聴">
-                          <IconButton
-                            size="small"
-                            color="error"
-                            onClick={(e) => handleYouTubeClick(e, song.difficulties[diff].youtubeUrl)}
-                          >
-                            <YouTubeIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Box>
-                  ) : (
-                    '-'
-                  )}
-                </TableCell>
-              ))}
+              {sortedDifficulties.map(diff => {
+                const diffInfo = song.difficulties[diff.id];
+                return (
+                  <TableCell key={diff.id} align="center">
+                    {diffInfo && diffInfo.level ? (
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <Chip
+                          label={diffInfo.level}
+                          size="small"
+                          sx={{
+                            bgcolor: diff.color,
+                            color: 'white',
+                            fontWeight: 'bold',
+                            mb: 0.5
+                          }}
+                        />
+                        
+                        {diffInfo.youtubeUrl && (
+                          <Tooltip title="YouTubeで視聴">
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={(e) => handleYouTubeClick(e, diffInfo.youtubeUrl)}
+                            >
+                              <YouTubeIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </Box>
+                    ) : (
+                      '-'
+                    )}
+                  </TableCell>
+                );
+              })}
               
               <TableCell align="center">
                 <Tooltip title="詳細を表示">

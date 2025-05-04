@@ -1,9 +1,19 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Game } from '../types/Game';
+import { Game, DifficultyDefinition } from '../types/Game';
 import { Song } from '../types/Song';
 import { getGames, getSongs } from '../services/songService';
 import { useAuth } from './AuthContext';
 import { useUpdateStatus } from '../hooks/useLastUpdate';
+
+// デフォルトの難易度設定
+export const DEFAULT_DIFFICULTIES: DifficultyDefinition[] = [
+  { id: 'EASY', name: 'EASY', color: '#43a047', order: 0 },
+  { id: 'NORMAL', name: 'NORMAL', color: '#1976d2', order: 1 },
+  { id: 'HARD', name: 'HARD', color: '#ff9800', order: 2 },
+  { id: 'EXPERT', name: 'EXPERT', color: '#d32f2f', order: 3 },
+  { id: 'MASTER', name: 'MASTER', color: '#9c27b0', order: 4 },
+  { id: 'APPEND', name: 'APPEND', color: '#607d8b', order: 5 }
+];
 
 interface SongDataContextType {
   games: Game[];
@@ -13,6 +23,7 @@ interface SongDataContextType {
   error: string | null;
   selectGame: (gameId: string) => void;
   refreshData: () => Promise<void>;
+  refreshDataAdmin: () => Promise<void>;  // 追加
 }
 
 const SongDataContext = createContext<SongDataContextType | null>(null);
@@ -137,6 +148,28 @@ export function SongDataProvider({ children }: SongDataProviderProps): JSX.Eleme
     }
   };
   
+  const refreshDataAdmin = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // ゲーム一覧を再取得
+      const fetchedGames = await getGames();
+      setGames(fetchedGames);
+      
+      // 楽曲一覧を再取得（選択中のゲームがある場合）
+      if (selectedGameId) {
+        const fetchedSongs = await getSongs(selectedGameId);
+        setSongs(fetchedSongs);
+      }
+    } catch (err: any) {
+      console.error('管理データ更新エラー:', err);
+      setError(err.message || '管理データの更新に失敗しました');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
   const value: SongDataContextType = {
     games,
     selectedGameId,
@@ -144,7 +177,8 @@ export function SongDataProvider({ children }: SongDataProviderProps): JSX.Eleme
     loading,
     error,
     selectGame,
-    refreshData
+    refreshData,
+    refreshDataAdmin  // 追加
   };
   
   return (

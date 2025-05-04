@@ -1,3 +1,4 @@
+// src/pages/SongDetails.tsx
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
@@ -32,7 +33,11 @@ const SongDetails: React.FC = () => {
       const foundGame = games.find(g => g.id === foundSong.gameId);
       if (foundGame) {
         setGame(foundGame);
+      } else {
+        setGame(null);
       }
+    } else {
+      setSong(null);
     }
   }, [songId, songs, games, loading]);
   
@@ -71,7 +76,7 @@ const SongDetails: React.FC = () => {
               楽曲が見つかりませんでした。
             </Alert>
           ) : (
-            <SongDetail song={song} gameName={game?.title || ''} />
+            <SongDetail song={song} game={game} />
           )}
         </Container>
       </ResponsiveLayout>

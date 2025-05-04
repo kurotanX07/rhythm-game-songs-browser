@@ -1,61 +1,49 @@
-import { ref, uploadBytes, getDownloadURL, deleteObject } from 'firebase/storage';
-import { storage } from './firebase';
+// src/services/songService.ts - getGames と getGame 関数を更新
+import { DEFAULT_DIFFICULTIES } from '../contexts/SongDataContext';
+
+// コレクション名の定義
+const GAMES_COLLECTION = 'games';
+const SONGS_COLLECTION = 'songs';
+const EXCEL_STRUCTURES_COLLECTION = 'excelStructures';
+const UPDATE_STATUS_COLLECTION = 'updateStatus';
 
 /**
- * Excelファイルをアップロードする
+ * ゲーム一覧を取得する
  */
-export async function uploadExcelFile(gameId: string, file: File): Promise<string> {
-  const timestamp = new Date().getTime();
-  const filename = `${gameId}_${timestamp}.xlsx`;
-  const storageRef = ref(storage, `excel/${gameId}/${filename}`);
-  
-  await uploadBytes(storageRef, file);
-  
-  return getDownloadURL(storageRef);
+export async function getGames(): Promise<Game[]> {
+  const gamesSnapshot = await getDocs(collection(db, GAMES_COLLECTION));
+  return gamesSnapshot.docs.map(doc => {
+    const data = doc.data();
+    return {
+      id: doc.id,
+      title: data.title,
+      description: data.description,
+      imageUrl: data.imageUrl,
+      songCount: data.songCount,
+      lastUpdated: data.lastUpdated?.toDate() || new Date(),
+      difficulties: data.difficulties || [...DEFAULT_DIFFICULTIES] // デフォルト値を設定
+    };
+  });
 }
 
 /**
- * 画像ファイルをアップロードする
+ * ゲーム情報を取得する
  */
-export async function uploadGameImage(gameId: string, file: File): Promise<string> {
-  const timestamp = new Date().getTime();
-  const extension = file.name.split('.').pop() || 'png';
-  const filename = `${gameId}_${timestamp}.${extension}`;
-  const storageRef = ref(storage, `images/games/${filename}`);
+export async function getGame(gameId: string): Promise<Game | null> {
+  const gameDoc = await getDoc(doc(db, GAMES_COLLECTION, gameId));
   
-  await uploadBytes(storageRef, file);
-  
-  return getDownloadURL(storageRef);
-}
-
-/**
- * ファイルを削除する
- */
-export async function deleteFile(fileUrl: string): Promise<void> {
-  try {
-    // URLからストレージパスを取得
-    const fileRef = ref(storage, getPathFromUrl(fileUrl));
-    
-    await deleteObject(fileRef);
-  } catch (error) {
-    console.error('ファイル削除エラー:', error);
-    throw error;
-  }
-}
-
-/**
- * URLからストレージパスを取得する
- */
-function getPathFromUrl(url: string): string {
-  // URLからファイルパスを抽出
-  // 例: https://firebasestorage.googleapis.com/v0/b/PROJECT_ID.appspot.com/o/PATH?alt=media&token=TOKEN
-  //     → PATH
-  const matches = url.match(/\/o\/([^?]+)/);
-  
-  if (!matches || matches.length < 2) {
-    throw new Error('無効なストレージURL形式');
+  if (!gameDoc.exists()) {
+    return null;
   }
   
-  // URLデコード
-  return decodeURIComponent(matches[1]);
+  const data = gameDoc.data();
+  return {
+    id: gameDoc.id,
+    title: data.title,
+    description: data.description,
+    imageUrl: data.imageUrl,
+    songCount: data.songCount,
+    lastUpdated: data.lastUpdated?.toDate() || new Date(),
+    difficulties: data.difficulties || [...DEFAULT_DIFFICULTIES] // デフォルト値を設定
+  };
 }

@@ -1,21 +1,31 @@
+// src/components/admin/GameTitleManager.tsx
 import React, { useState, useEffect } from 'react';
 import {
   Box, Typography, Button, TextField, Grid, Card, CardContent,
   CardActions, Dialog, DialogTitle, DialogContent, DialogActions,
-  IconButton, CircularProgress, Alert, Snackbar
+  IconButton, CircularProgress, Alert, Snackbar, Divider
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { Game } from '../../types/Game';
-import { collection, addDoc, doc, setDoc, deleteDoc, getDocs, serverTimestamp } from 'firebase/firestore';
+import { Game, DifficultyDefinition } from '../../types/Game';
+import { collection, doc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { useSongData } from '../../contexts/SongDataContext';
 
 const GAMES_COLLECTION = 'games';
 
+// 標準の難易度設定
+const DEFAULT_DIFFICULTIES: DifficultyDefinition[] = [
+  { id: 'EASY', name: 'EASY', color: '#43a047', order: 0 },
+  { id: 'NORMAL', name: 'NORMAL', color: '#1976d2', order: 1 },
+  { id: 'HARD', name: 'HARD', color: '#ff9800', order: 2 },
+  { id: 'EXPERT', name: 'EXPERT', color: '#d32f2f', order: 3 },
+  { id: 'MASTER', name: 'MASTER', color: '#9c27b0', order: 4 }
+];
+
 const GameTitleManager: React.FC = () => {
-  const { games, refreshData } = useSongData();
+  const { games, refreshDataAdmin } = useSongData();
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
@@ -30,6 +40,7 @@ const GameTitleManager: React.FC = () => {
   const [title, setTitle] = useState<string>('');
   const [description, setDescription] = useState<string>('');
   const [imageUrl, setImageUrl] = useState<string>('');
+  const [difficulties, setDifficulties] = useState<DifficultyDefinition[]>([...DEFAULT_DIFFICULTIES]);
   
   // 削除確認ダイアログ
   const [deleteDialogOpen, setDeleteDialogOpen] = useState<boolean>(false);
@@ -45,6 +56,7 @@ const GameTitleManager: React.FC = () => {
       setTitle(game.title);
       setDescription(game.description || '');
       setImageUrl(game.imageUrl || '');
+      setDifficulties(game.difficulties || [...DEFAULT_DIFFICULTIES]);
     } else {
       // 新規作成モード
       setIsEditing(false);
@@ -53,6 +65,7 @@ const GameTitleManager: React.FC = () => {
       setTitle('');
       setDescription('');
       setImageUrl('');
+      setDifficulties([...DEFAULT_DIFFICULTIES]);
     }
     
     setDialogOpen(true);
@@ -63,10 +76,41 @@ const GameTitleManager: React.FC = () => {
     setDialogOpen(false);
   };
   
+  // 難易度追加
+  const addDifficulty = () => {
+    setDifficulties([
+      ...difficulties,
+      { id: '', name: '', color: '#888888', order: difficulties.length }
+    ]);
+  };
+  
+  // 難易度削除
+  const removeDifficulty = (index: number) => {
+    setDifficulties(difficulties.filter((_, i) => i !== index));
+  };
+  
+  // 難易度変更
+  const handleDifficultyChange = (index: number, field: keyof DifficultyDefinition, value: string | number) => {
+    const newDifficulties = [...difficulties];
+    newDifficulties[index] = { ...newDifficulties[index], [field]: value };
+    setDifficulties(newDifficulties);
+  };
+  
   // ゲームの保存
   const handleSaveGame = async () => {
     if (!title.trim()) {
       setError('ゲームタイトルを入力してください');
+      return;
+    }
+    
+    // 難易度IDが重複していないか確認
+    const diffIds = difficulties.map(d => d.id);
+    if (diffIds.some(id => !id.trim())) {
+      setError('難易度IDを入力してください');
+      return;
+    }
+    if (new Set(diffIds).size !== diffIds.length) {
+      setError('難易度IDが重複しています');
       return;
     }
     
@@ -76,35 +120,32 @@ const GameTitleManager: React.FC = () => {
       
       const customId = gameId.trim() || `game_${Date.now()}`;
       const gameData = {
+        id: isEditing ? currentGame!.id : customId,
         title: title.trim(),
         description: description.trim() || null,
         imageUrl: imageUrl.trim() || null,
         songCount: isEditing ? currentGame?.songCount || 0 : 0,
-        lastUpdated: new Date()
+        lastUpdated: new Date(),
+        difficulties: difficulties
       };
       
       if (isEditing && currentGame) {
         // 既存ゲームの更新
-        await setDoc(doc(db, GAMES_COLLECTION, currentGame.id), {
-          ...gameData,
-          id: currentGame.id
-        });
+        await setDoc(doc(db, GAMES_COLLECTION, currentGame.id), gameData);
         setSuccess('ゲーム情報を更新しました');
       } else {
         // 新規ゲームの作成
-        await setDoc(doc(db, GAMES_COLLECTION, customId), {
-          ...gameData,
-          id: customId
-        });
+        await setDoc(doc(db, GAMES_COLLECTION, customId), gameData);
         setSuccess('新しいゲームを追加しました');
       }
       
       // ダイアログを閉じる
       handleCloseDialog();
       
-      // ゲーム一覧を更新
-      await refreshData();
+      // ゲーム一覧を更新（管理者特権で更新制限をバイパス）
+      await refreshDataAdmin();
     } catch (err: any) {
+      console.error('ゲーム保存エラー:', err);
       setError(err.message || 'ゲームの保存に失敗しました');
     } finally {
       setLoading(false);
@@ -137,8 +178,8 @@ const GameTitleManager: React.FC = () => {
       // ダイアログを閉じる
       handleCloseDeleteDialog();
       
-      // ゲーム一覧を更新
-      await refreshData();
+      // ゲーム一覧を更新（管理者特権で更新制限をバイパス）
+      await refreshDataAdmin();
     } catch (err: any) {
       setError(err.message || 'ゲームの削除に失敗しました');
     } finally {
@@ -199,6 +240,28 @@ const GameTitleManager: React.FC = () => {
                       {game.description}
                     </Typography>
                   )}
+                  
+                  {/* 難易度バッジの表示 */}
+                  {game.difficulties && game.difficulties.length > 0 && (
+                    <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                      {game.difficulties.map((diff, idx) => (
+                        <Box
+                          key={idx}
+                          sx={{
+                            bgcolor: diff.color,
+                            color: 'white',
+                            px: 1,
+                            py: 0.5,
+                            borderRadius: 1,
+                            fontSize: '0.75rem',
+                            fontWeight: 'bold'
+                          }}
+                        >
+                          {diff.name}
+                        </Box>
+                      ))}
+                    </Box>
+                  )}
                 </CardContent>
                 <CardActions>
                   <IconButton
@@ -221,7 +284,7 @@ const GameTitleManager: React.FC = () => {
       )}
       
       {/* 新規/編集ダイアログ */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="sm" fullWidth>
+      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>{isEditing ? 'ゲーム情報の編集' : '新規ゲーム追加'}</DialogTitle>
         <DialogContent>
           <TextField
@@ -258,6 +321,61 @@ const GameTitleManager: React.FC = () => {
             onChange={(e) => setImageUrl(e.target.value)}
             helperText="ゲームの画像URLを入力（オプション）"
           />
+          
+          <Divider sx={{ my: 3 }} />
+          
+          {/* 難易度設定セクション */}
+          <Typography variant="h6" gutterBottom>
+            難易度設定
+          </Typography>
+          <Box sx={{ mb: 2 }}>
+            {difficulties.map((diff, index) => (
+              <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                <TextField
+                  label="ID"
+                  size="small"
+                  value={diff.id}
+                  onChange={(e) => handleDifficultyChange(index, 'id', e.target.value)}
+                  sx={{ mr: 1, width: '100px' }}
+                />
+                <TextField
+                  label="表示名"
+                  size="small"
+                  value={diff.name}
+                  onChange={(e) => handleDifficultyChange(index, 'name', e.target.value)}
+                  sx={{ mr: 1, width: '120px' }}
+                />
+                <Box sx={{ display: 'flex', alignItems: 'center', mr: 1 }}>
+                  <Box sx={{ mr: 1 }}>色:</Box>
+                  <input
+                    type="color"
+                    value={diff.color}
+                    onChange={(e) => handleDifficultyChange(index, 'color', e.target.value)}
+                  />
+                </Box>
+                <TextField
+                  label="順序"
+                  size="small"
+                  type="number"
+                  value={diff.order}
+                  onChange={(e) => handleDifficultyChange(index, 'order', parseInt(e.target.value) || 0)}
+                  sx={{ mr: 1, width: '70px' }}
+                />
+                <IconButton onClick={() => removeDifficulty(index)} color="error" disabled={difficulties.length <= 1}>
+                  <DeleteIcon fontSize="small" />
+                </IconButton>
+              </Box>
+            ))}
+            <Button
+              startIcon={<AddIcon />}
+              onClick={addDifficulty}
+              variant="outlined"
+              size="small"
+              sx={{ mt: 1 }}
+            >
+              難易度を追加
+            </Button>
+          </Box>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog} color="inherit">

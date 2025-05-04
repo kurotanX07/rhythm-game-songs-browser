@@ -1,3 +1,4 @@
+// src/components/user/SongDetail.tsx
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -11,52 +12,47 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import SpeedIcon from '@mui/icons-material/Speed';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
 import YouTubePlayer from './YouTubePlayer';
-import { Song, DifficultyLevel } from '../../types/Song';
+import { Song } from '../../types/Song';
+import { Game, DifficultyDefinition } from '../../types/Game';
 
 interface SongDetailProps {
   song: Song;
-  gameName: string;
+  game: Game | null;
 }
 
-const SongDetail: React.FC<SongDetailProps> = ({ song, gameName }) => {
+const SongDetail: React.FC<SongDetailProps> = ({ song, game }) => {
   const navigate = useNavigate();
-  const [selectedDifficulty, setSelectedDifficulty] = React.useState<DifficultyLevel>('EXPERT');
+  const [selectedDifficulty, setSelectedDifficulty] = React.useState<string>('');
+  
+  // ゲームの難易度を順序でソート
+  const sortedDifficulties = React.useMemo(() => {
+    if (!game?.difficulties) return [];
+    return [...game.difficulties].sort((a, b) => a.order - b.order);
+  }, [game]);
   
   // 有効な難易度を取得
-  const availableDifficulties = Object.entries(song.difficulties)
-    .filter(([_, info]) => info.level !== null)
-    .map(([diff, _]) => diff as DifficultyLevel);
+  const availableDifficulties = React.useMemo(() => {
+    return sortedDifficulties.filter(diff => 
+      song.difficulties[diff.id] && song.difficulties[diff.id].level !== null
+    );
+  }, [song, sortedDifficulties]);
   
   // 最初に利用可能な難易度を選択
   React.useEffect(() => {
-    if (availableDifficulties.length > 0 && !song.difficulties[selectedDifficulty].level) {
-      setSelectedDifficulty(availableDifficulties[0]);
+    if (availableDifficulties.length > 0 && 
+        (!selectedDifficulty || !song.difficulties[selectedDifficulty])) {
+      setSelectedDifficulty(availableDifficulties[0].id);
     }
-  }, [song]);
+  }, [song, availableDifficulties, selectedDifficulty]);
   
   // 難易度タブ変更ハンドラ
-  const handleDifficultyChange = (_: React.SyntheticEvent, newValue: DifficultyLevel) => {
+  const handleDifficultyChange = (_: React.SyntheticEvent, newValue: string) => {
     setSelectedDifficulty(newValue);
   };
   
-  // 難易度表示のバッジの色設定
-  const getDifficultyColor = (difficulty: DifficultyLevel): string => {
-    switch (difficulty) {
-      case 'EASY':
-        return '#43a047';
-      case 'NORMAL':
-        return '#1976d2';
-      case 'HARD':
-        return '#ff9800';
-      case 'EXPERT':
-        return '#d32f2f';
-      case 'MASTER':
-        return '#9c27b0';
-      case 'APPEND':
-        return '#607d8b';
-      default:
-        return '#9e9e9e';
-    }
+  // 難易度定義を取得
+  const getDifficultyDefinition = (id: string): DifficultyDefinition | undefined => {
+    return game?.difficulties.find(d => d.id === id);
   };
   
   // 一覧に戻るハンドラ
@@ -65,7 +61,8 @@ const SongDetail: React.FC<SongDetailProps> = ({ song, gameName }) => {
   };
   
   // 現在選択されている難易度情報
-  const currentDiffInfo = song.difficulties[selectedDifficulty];
+  const currentDiffInfo = selectedDifficulty ? song.difficulties[selectedDifficulty] : null;
+  const currentDiffDef = selectedDifficulty ? getDifficultyDefinition(selectedDifficulty) : null;
   
   return (
     <Box sx={{ my: 3 }}>
@@ -87,7 +84,7 @@ const SongDetail: React.FC<SongDetailProps> = ({ song, gameName }) => {
                 {song.name}
               </Typography>
               <Typography variant="subtitle1" color="text.secondary">
-                {gameName} - No.{song.songNo}
+                {game?.title || ''} - No.{song.songNo}
                 {song.implementationNo && ` (実装No.${song.implementationNo})`}
               </Typography>
             </Box>
@@ -188,25 +185,29 @@ const SongDetail: React.FC<SongDetailProps> = ({ song, gameName }) => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {(['EASY', 'NORMAL', 'HARD', 'EXPERT', 'MASTER', 'APPEND'] as DifficultyLevel[])
-                      .filter(diff => song.difficulties[diff].level !== null)
-                      .map(diff => (
-                        <TableRow key={diff}>
+                    {sortedDifficulties.filter(diff => {
+                      const diffInfo = song.difficulties[diff.id];
+                      return diffInfo && diffInfo.level !== null;
+                    }).map(diff => {
+                      const diffInfo = song.difficulties[diff.id];
+                      return (
+                        <TableRow key={diff.id}>
                           <TableCell>
                             <Chip
-                              label={diff}
+                              label={diff.name}
                               size="small"
                               sx={{
-                                bgcolor: getDifficultyColor(diff),
+                                bgcolor: diff.color,
                                 color: 'white',
                                 fontWeight: 'bold'
                               }}
                             />
                           </TableCell>
-                          <TableCell align="center">{song.difficulties[diff].level}</TableCell>
-                          <TableCell align="center">{song.difficulties[diff].combo || '-'}</TableCell>
+                          <TableCell align="center">{diffInfo.level}</TableCell>
+                          <TableCell align="center">{diffInfo.combo || '-'}</TableCell>
                         </TableRow>
-                      ))}
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -226,23 +227,26 @@ const SongDetail: React.FC<SongDetailProps> = ({ song, gameName }) => {
               aria-label="difficulty tabs"
               sx={{ mb: 2 }}
             >
-              {availableDifficulties.map(diff => (
-                <Tab 
-                  key={diff} 
-                  label={diff} 
-                  value={diff} 
-                  disabled={!song.difficulties[diff].youtubeUrl}
-                  sx={{
-                    color: song.difficulties[diff].youtubeUrl 
-                      ? getDifficultyColor(diff) 
-                      : 'text.disabled',
-                    fontWeight: 'bold'
-                  }}
-                />
-              ))}
+              {availableDifficulties.map(diff => {
+                const diffInfo = song.difficulties[diff.id];
+                return (
+                  <Tab 
+                    key={diff.id} 
+                    label={diff.name} 
+                    value={diff.id} 
+                    disabled={!diffInfo || !diffInfo.youtubeUrl}
+                    sx={{
+                      color: diffInfo && diffInfo.youtubeUrl 
+                        ? diff.color 
+                        : 'text.disabled',
+                      fontWeight: 'bold'
+                    }}
+                  />
+                );
+              })}
             </Tabs>
             
-            {currentDiffInfo.youtubeUrl ? (
+            {currentDiffInfo && currentDiffInfo.youtubeUrl ? (
               <Box sx={{ mt: 2 }}>
                 <YouTubePlayer url={currentDiffInfo.youtubeUrl} />
               </Box>

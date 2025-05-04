@@ -1,5 +1,4 @@
-export type DifficultyLevel = 'EASY' | 'NORMAL' | 'HARD' | 'EXPERT' | 'MASTER' | 'APPEND';
-
+// src/types/Song.ts
 export interface DifficultyInfo {
   level: number | null;
   combo: number | null;
@@ -17,12 +16,17 @@ export interface SongInfo {
   tags?: string[];
 }
 
+// For backwards compatibility
+export type DifficultyLevel = string;
+
 export interface Song {
   id: string;
   gameId: string;
   songNo: number;
   implementationNo?: number;
   name: string;
-  difficulties: Record<DifficultyLevel, DifficultyInfo>;
+  difficulties: {
+    [difficultyId: string]: DifficultyInfo;
+  };
   info: SongInfo;
 }

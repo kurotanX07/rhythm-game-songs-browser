@@ -1,30 +1,40 @@
-import React, { useState } from 'react';
+// src/components/user/FilterControls.tsx
+import React, { useState, useEffect } from 'react';
 import { 
   Box, Typography, TextField, FormControl, 
   InputLabel, Select, MenuItem, SelectChangeEvent,
   Chip, IconButton, Slider, Stack
 } from '@mui/material';
 import ClearIcon from '@mui/icons-material/Clear';
-import { DifficultyLevel } from '../../types/Song';
+import { useSongData } from '../../contexts/SongDataContext';
+import { Game } from '../../types/Game';
 
 interface FilterControlsProps {
   onFilterChange: (filters: FilterOptions) => void;
+  game: Game | null;
 }
 
 export interface FilterOptions {
   searchText: string;
-  difficulty: DifficultyLevel | 'ALL';
+  difficulty: string;
   minLevel: number;
   maxLevel: number;
   tags: string[];
 }
 
-const FilterControls: React.FC<FilterControlsProps> = ({ onFilterChange }) => {
+const FilterControls: React.FC<FilterControlsProps> = ({ onFilterChange, game }) => {
   const [searchText, setSearchText] = useState<string>('');
-  const [difficulty, setDifficulty] = useState<DifficultyLevel | 'ALL'>('ALL');
+  const [difficulty, setDifficulty] = useState<string>('ALL');
   const [levelRange, setLevelRange] = useState<number[]>([1, 15]);
   const [tag, setTag] = useState<string>('');
   const [tags, setTags] = useState<string[]>([]);
+  
+  const difficulties = game?.difficulties || [];
+  
+  useEffect(() => {
+    // ゲームが変更されたらフィルタをリセット
+    setDifficulty('ALL');
+  }, [game]);
   
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newSearchText = event.target.value;
@@ -33,7 +43,7 @@ const FilterControls: React.FC<FilterControlsProps> = ({ onFilterChange }) => {
   };
   
   const handleDifficultyChange = (event: SelectChangeEvent) => {
-    const newDifficulty = event.target.value as DifficultyLevel | 'ALL';
+    const newDifficulty = event.target.value;
     setDifficulty(newDifficulty);
     updateFilters({ difficulty: newDifficulty });
   };
@@ -105,12 +115,9 @@ const FilterControls: React.FC<FilterControlsProps> = ({ onFilterChange }) => {
             size="small"
           >
             <MenuItem value="ALL">すべて</MenuItem>
-            <MenuItem value="EASY">EASY</MenuItem>
-            <MenuItem value="NORMAL">NORMAL</MenuItem>
-            <MenuItem value="HARD">HARD</MenuItem>
-            <MenuItem value="EXPERT">EXPERT</MenuItem>
-            <MenuItem value="MASTER">MASTER</MenuItem>
-            <MenuItem value="APPEND">APPEND</MenuItem>
+            {difficulties.map(diff => (
+              <MenuItem key={diff.id} value={diff.id}>{diff.name}</MenuItem>
+            ))}
           </Select>
         </FormControl>
         
