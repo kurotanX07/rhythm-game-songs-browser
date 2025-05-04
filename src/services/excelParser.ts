@@ -361,24 +361,28 @@ function findColumnIndex(headers: string[], keywords: string[]): number {
  * 列マッピングを手動で更新する
  */
 export function updateColumnMapping(
-  structure: ExcelStructure, 
-  field: string, 
-  subField: string | null,
-  columnIndex: number
-): ExcelStructure {
-  const newStructure = { ...structure };
-  const newMapping = { ...structure.columnMapping };
-  
-  if (subField === null) {
-    // 主要フィールド（songNo, name, implementationNo）
-    newMapping[field as keyof ColumnMapping] = columnIndex;
-  } else {
-    // サブフィールド（difficulties, combos, youtubeUrls, info）
-    const subFieldObj = { ...(newMapping[field as keyof ColumnMapping] as Record<string, any>) };
-    subFieldObj[subField] = columnIndex;
-    newMapping[field as keyof ColumnMapping] = subFieldObj;
+    structure: ExcelStructure, 
+    field: string, 
+    subField: string | null,
+    columnIndex: number
+  ): ExcelStructure {
+    const newStructure = { ...structure };
+    const newMapping = { ...structure.columnMapping };
+    
+    if (subField === null) {
+      // Main fields (songNo, name, implementationNo)
+      if (field === 'songNo' || field === 'name' || field === 'implementationNo') {
+        (newMapping as any)[field] = columnIndex;
+      }
+    } else {
+      // Sub-fields (difficulties, combos, youtubeUrls, info)
+      if (field === 'difficulties' || field === 'combos' || field === 'youtubeUrls' || field === 'info') {
+        const subFieldObj = { ...(newMapping[field as keyof ColumnMapping] as any) };
+        subFieldObj[subField] = columnIndex;
+        (newMapping as any)[field] = subFieldObj;
+      }
+    }
+    
+    newStructure.columnMapping = newMapping;
+    return newStructure;
   }
-  
-  newStructure.columnMapping = newMapping;
-  return newStructure;
-}

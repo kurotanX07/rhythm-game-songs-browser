@@ -1,0 +1,237 @@
+import React, { useState, useRef } from 'react';
+import {
+  Box, Typography, Button, FormControl, InputLabel, Select,
+  MenuItem, TextField, Paper, Alert, AlertTitle, CircularProgress,
+  Grid, Stepper, Step, StepLabel, StepContent
+} from '@mui/material';
+import CloudUploadIcon from '@mui/icons-material/CloudUpload';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import { useExcelParser } from '../../hooks/useExcelParser';
+import { useSongData } from '../../contexts/SongDataContext';
+import { Game } from '../../types/Game';
+import { Song } from '../../types/Song';
+
+const ExcelUploader: React.FC = () => {
+  const { games, refreshData } = useSongData();
+  const { 
+    songs, structure, loading, error, 
+    analyzeExcel, parseExcel, uploadSongs 
+  } = useExcelParser();
+  
+  const [selectedGameId, setSelectedGameId] = useState<string>('');
+  const [file, setFile] = useState<File | null>(null);
+  const [activeStep, setActiveStep] = useState(0);
+  const [success, setSuccess] = useState<string | null>(null);
+  
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // ゲーム選択ハンドラ
+  const handleGameChange = (event: React.ChangeEvent<{ value: unknown }>) => {
+    setSelectedGameId(event.target.value as string);
+    // ゲームを変更したら、ステップとファイル選択をリセット
+    setActiveStep(0);
+    setFile(null);
+    setSuccess(null);
+  };
+  
+  // ファイル選択ハンドラ
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files.length > 0) {
+      setFile(event.target.files[0]);
+      setActiveStep(1);
+    }
+  };
+  
+  // ファイル選択ボタンのクリックハンドラ
+  const handleSelectFileClick = () => {
+    fileInputRef.current?.click();
+  };
+  
+  // ファイル解析ハンドラ
+  const handleParseFile = async () => {
+    if (!file || !selectedGameId) return;
+    
+    try {
+      const selectedGame = games.find(g => g.id === selectedGameId);
+      if (!selectedGame) {
+        throw new Error('選択されたゲームが見つかりません');
+      }
+      
+      // ファイルを解析
+      const parsedSongs = await parseExcel(file, selectedGameId);
+      
+      // 次のステップへ
+      setActiveStep(2);
+    } catch (err: any) {
+      console.error('ファイル解析エラー:', err);
+    }
+  };
+  
+  // アップロードハンドラ
+  const handleUpload = async () => {
+    if (!file || !selectedGameId || songs.length === 0) return;
+    
+    try {
+      // 楽曲データをアップロード
+      await uploadSongs(selectedGameId, songs, file);
+      
+      // 成功メッセージを表示
+      setSuccess(`${songs.length}曲のデータをアップロードしました`);
+      
+      // データを更新
+      await refreshData();
+      
+      // 最終ステップへ
+      setActiveStep(3);
+    } catch (err: any) {
+      console.error('アップロードエラー:', err);
+    }
+  };
+  
+  return (
+    <Box>
+      <Typography variant="h5" gutterBottom>
+        楽曲データアップロード
+      </Typography>
+      
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          <AlertTitle>エラー</AlertTitle>
+          {error}
+        </Alert>
+      )}
+      
+      {success && (
+        <Alert severity="success" sx={{ mb: 3 }} icon={<CheckCircleIcon />}>
+          <AlertTitle>成功</AlertTitle>
+          {success}
+        </Alert>
+      )}
+      
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Grid container spacing={3}>
+          <Grid item xs={12} md={6}>
+            <FormControl fullWidth>
+              <InputLabel id="game-select-label">ゲームタイトル</InputLabel>
+              <Select
+                labelId="game-select-label"
+                id="game-select"
+                value={selectedGameId}
+                label="ゲームタイトル"
+                onChange={handleGameChange as any}
+                disabled={loading}
+              >
+                {games.length === 0 ? (
+                  <MenuItem value="" disabled>
+                    ゲームが登録されていません
+                  </MenuItem>
+                ) : (
+                  games.map((game) => (
+                    <MenuItem key={game.id} value={game.id}>
+                      {game.title}
+                    </MenuItem>
+                  ))
+                )}
+              </Select>
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12} md={6}>
+            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+              <Button
+                variant="contained"
+                component="label"
+                startIcon={<CloudUploadIcon />}
+                disabled={!selectedGameId || loading}
+                onClick={handleSelectFileClick}
+                sx={{ mr: 2 }}
+              >
+                Excelファイルを選択
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                style={{ display: 'none' }}
+                onChange={handleFileChange}
+              />
+              {file && (
+                <Typography variant="body2" color="text.secondary">
+                  {file.name}
+                </Typography>
+              )}
+            </Box>
+          </Grid>
+        </Grid>
+      </Paper>
+      
+      <Stepper activeStep={activeStep} orientation="vertical">
+        <Step key="select">
+          <StepLabel>ゲームとファイルを選択</StepLabel>
+          <StepContent>
+            <Typography variant="body2" color="text.secondary">
+              アップロードしたいゲームタイトルとExcelファイルを選択してください。
+            </Typography>
+          </StepContent>
+        </Step>
+        
+        <Step key="parse">
+          <StepLabel>ファイルを解析</StepLabel>
+          <StepContent>
+            <Typography variant="body2" paragraph>
+              選択したExcelファイルを解析して楽曲データを取得します。
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={handleParseFile}
+              disabled={loading}
+              sx={{ mt: 1, mr: 1 }}
+            >
+              {loading ? <CircularProgress size={24} /> : 'ファイルを解析'}
+            </Button>
+          </StepContent>
+        </Step>
+        
+        <Step key="confirm">
+          <StepLabel>データを確認してアップロード</StepLabel>
+          <StepContent>
+            <Typography variant="body2" paragraph>
+              {songs.length}曲のデータが取得されました。
+            </Typography>
+            <Box sx={{ mb: 2 }}>
+              <Button
+                variant="contained"
+                onClick={handleUpload}
+                disabled={loading}
+                sx={{ mt: 1, mr: 1 }}
+              >
+                {loading ? <CircularProgress size={24} /> : 'アップロード'}
+              </Button>
+            </Box>
+          </StepContent>
+        </Step>
+        
+        <Step key="complete">
+          <StepLabel>アップロード完了</StepLabel>
+          <StepContent>
+            <Typography variant="body2" paragraph>
+              データのアップロードが完了しました。
+            </Typography>
+            <Button
+              onClick={() => {
+                setActiveStep(0);
+                setFile(null);
+                setSuccess(null);
+              }}
+              sx={{ mt: 1, mr: 1 }}
+            >
+              新しいファイルをアップロード
+            </Button>
+          </StepContent>
+        </Step>
+      </Stepper>
+    </Box>
+  );
+};
+
+export default ExcelUploader;

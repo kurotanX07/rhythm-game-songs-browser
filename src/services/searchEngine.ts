@@ -155,24 +155,24 @@ export function getSimilarSongs(
 
 // 難易度パターンの類似度を計算
 function compareDifficultyPatterns(song1: Song, song2: Song): number {
-  const difficulties = ['EASY', 'NORMAL', 'HARD', 'EXPERT', 'MASTER', 'APPEND'];
-  let matchCount = 0;
-  let totalComparisons = 0;
-  
-  difficulties.forEach(diff => {
-    const level1 = song1.difficulties[diff]?.level;
-    const level2 = song2.difficulties[diff]?.level;
+    const difficulties: DifficultyLevel[] = ['EASY', 'NORMAL', 'HARD', 'EXPERT', 'MASTER', 'APPEND'];
+    let matchCount = 0;
+    let totalComparisons = 0;
     
-    if (level1 !== null && level2 !== null) {
-      totalComparisons++;
+    difficulties.forEach(diff => {
+      const level1 = song1.difficulties[diff]?.level;
+      const level2 = song2.difficulties[diff]?.level;
       
-      // レベルが完全一致または±1以内なら類似とみなす
-      if (Math.abs(level1 - level2) <= 1) {
-        matchCount++;
+      if (level1 !== null && level2 !== null) {
+        totalComparisons++;
+        
+        // Levels match or are within 1 level
+        if (Math.abs((level1 as number) - (level2 as number)) <= 1) {
+          matchCount++;
+        }
       }
-    }
-  });
-  
-  // マッチ率を返す (0-1)
-  return totalComparisons > 0 ? matchCount / totalComparisons : 0;
-}
+    });
+    
+    // Match rate (0-1)
+    return totalComparisons > 0 ? matchCount / totalComparisons : 0;
+  }
