@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">rhythm-game-browser</string>
+    <string name="title_activity_main">rhythm-game-browser</string>
+    <string name="package_name">com.kurotanx07.rhythmgamebrowser</string>
+    <string name="custom_url_scheme">com.kurotanx07.rhythmgamebrowser</string>
+</resources>

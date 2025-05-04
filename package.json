@@ -3,25 +3,43 @@
   "version": "0.1.0",
   "private": true,
   "dependencies": {
-    "@testing-library/dom": "^10.4.0",
-    "@testing-library/jest-dom": "^6.6.3",
-    "@testing-library/react": "^16.3.0",
+    "@capacitor/android": "^5.5.0",
+    "@capacitor/core": "^5.5.0",
+    "@capacitor/ios": "^5.5.0",
+    "@emotion/react": "^11.11.1",
+    "@emotion/styled": "^11.11.0",
+    "@mui/icons-material": "^5.14.15",
+    "@mui/material": "^5.14.15",
+    "@testing-library/jest-dom": "^5.17.0",
+    "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
     "@types/jest": "^27.5.2",
-    "@types/node": "^16.18.126",
-    "@types/react": "^19.1.2",
-    "@types/react-dom": "^19.1.3",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "@types/node": "^16.18.59",
+    "@types/react": "^18.2.33",
+    "@types/react-dom": "^18.2.14",
+    "dayjs": "^1.11.10",
+    "firebase": "^10.5.2",
+    "fuse.js": "^7.0.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-firebase-hooks": "^5.1.1",
+    "react-helmet-async": "^1.3.0",
+    "react-router-dom": "^6.17.0",
     "react-scripts": "5.0.1",
+    "react-youtube": "^10.1.0",
     "typescript": "^4.9.5",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "xlsx": "^0.18.5"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "cap:sync": "npx cap sync",
+    "cap:android": "npm run build && npx cap sync && npx cap open android",
+    "cap:ios": "npm run build && npx cap sync && npx cap open ios",
+    "deploy": "npm run build && firebase deploy"
   },
   "eslintConfig": {
     "extends": [
@@ -40,5 +58,9 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^5.5.0",
+    "firebase-tools": "^12.7.0"
   }
 }
