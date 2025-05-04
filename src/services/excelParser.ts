@@ -81,14 +81,17 @@ export async function parseExcelFile(file: File, structure: ExcelStructure, game
         });
         
         // 最初の数行を詳細出力（生データ確認）
-        console.log('First 2 rows raw data:', 
-          jsonData.slice(structure.dataStartRow - structure.headerRow, 
-            structure.dataStartRow - structure.headerRow + 2));
+        const firstRows = jsonData.slice(structure.dataStartRow - structure.headerRow, 
+          structure.dataStartRow - structure.headerRow + 2);
+        console.log('First 2 rows raw data:', firstRows);
         
-        // 列オフセットの調整（2列のズレを修正）
+        // サンプルデータを取得して列オフセットを自動検出
+        const sampleRow = firstRows.length > 0 ? firstRows[0] as any[] : undefined;
+        
+        // 列オフセットの調整（動的検出に基づいて調整）
         const columnOffsetAdjusted = {
           ...structure,
-          columnMapping: adjustColumnOffset(structure.columnMapping)
+          columnMapping: adjustColumnOffset(structure.columnMapping, sampleRow)
         };
         
         // 調整後の構造を表示
@@ -119,18 +122,86 @@ export async function parseExcelFile(file: File, structure: ExcelStructure, game
 
 /**
  * 列マッピングのオフセットを調整
- * 報告された問題: 列インデックスが実際より2程度大きい
+ * 動的にオフセットを検出して修正
  */
-function adjustColumnOffset(mapping: ColumnMapping): ColumnMapping {
+function adjustColumnOffset(mapping: ColumnMapping, row?: any[] | undefined): ColumnMapping {
   // 深いコピーを作成
   const adjusted = JSON.parse(JSON.stringify(mapping)) as ColumnMapping;
   
-  // オフセット調整値
-  const offset = -2; // 列番号が2大きい場合は-2で調整
+  // If no sample row is provided, use a fixed offset of 0 (no adjustment)
+  // This is a safer default than assuming a fixed offset
+  let offset = 0;
+  
+  // 検証用にログを出力
+  console.log('Original Column Mapping:', JSON.stringify(mapping, null, 2));
+  
+  // If a sample row is provided, try to detect if the offset is needed
+  if (row && row.length > 0) {
+    // Check if the detected column for songNo has the expected data type
+    if (mapping.songNo >= 0 && mapping.songNo < row.length) {
+      const songNoValue = row[mapping.songNo];
+      // If the value at songNo column is not a number or numeric string,
+      // try to find a better match by checking nearby columns
+      if (songNoValue !== null && songNoValue !== undefined) {
+        if (typeof songNoValue !== 'number' && 
+            !/^\d+$/.test(String(songNoValue).trim())) {
+          
+          // Try columns near the detected songNo column
+          for (let i = -2; i <= 2; i++) {
+            const testCol = mapping.songNo + i;
+            if (testCol >= 0 && testCol < row.length) {
+              const testValue = row[testCol];
+              if (testValue !== null && testValue !== undefined &&
+                  (typeof testValue === 'number' || /^\d+$/.test(String(testValue).trim()))) {
+                // Found a better column for songNo - calculate the offset
+                offset = i;
+                console.log(`Detected column offset: ${offset} based on songNo field`);
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+    
+    // Also check the name column as a backup
+    if (offset === 0 && mapping.name >= 0 && mapping.name < row.length) {
+      const nameValue = row[mapping.name];
+      // If the value at name column doesn't look like a name (empty or too short),
+      // try to find a better match
+      if (!nameValue || 
+          (typeof nameValue === 'string' && nameValue.trim().length < 2)) {
+        
+        // Try columns near the detected name column
+        for (let i = -2; i <= 2; i++) {
+          const testCol = mapping.name + i;
+          if (testCol >= 0 && testCol < row.length) {
+            const testValue = row[testCol];
+            if (testValue && 
+                typeof testValue === 'string' && 
+                testValue.trim().length >= 2) {
+              // Found a better column for name - calculate the offset
+              offset = i;
+              console.log(`Detected column offset: ${offset} based on name field`);
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  console.log(`Using column offset: ${offset}`);
   
   // 基本フィールドの調整
-  if (adjusted.songNo >= 0) adjusted.songNo = Math.max(0, adjusted.songNo + offset);
-  if (adjusted.name >= 0) adjusted.name = Math.max(0, adjusted.name + offset);
+  if (adjusted.songNo >= 0) {
+    adjusted.songNo = Math.max(0, adjusted.songNo + offset);
+  }
+  
+  if (adjusted.name >= 0) {
+    adjusted.name = Math.max(0, adjusted.name + offset);
+  }
+  
   if (adjusted.implementationNo !== undefined && adjusted.implementationNo >= 0) {
     adjusted.implementationNo = Math.max(0, adjusted.implementationNo + offset);
   }
@@ -163,6 +234,8 @@ function adjustColumnOffset(mapping: ColumnMapping): ColumnMapping {
       adjusted.info[key as keyof typeof adjusted.info] = Math.max(0, value + offset) as any;
     }
   });
+  
+  console.log('Adjusted Column Mapping:', JSON.stringify(adjusted, null, 2));
   
   return adjusted;
 }
@@ -505,10 +578,23 @@ function getSongInfoFromArray(row: any[], mapping: ColumnMapping): SongInfo {
 }
 
 /**
+ * Excelファイルの最初の行のみを解析して構造を決定する
+ * この関数は、ゲームタイトル管理画面でExcelファイルの構造を解析するために使用される
+ */
+export async function analyzeExcelFirstRow(file: File, gameId: string, game: Game): Promise<ExcelStructure> {
+  return analyzeExcelStructure(file, gameId, game, true);
+}
+
+/**
  * Excelファイルの構造を自動検出する
  * ゲーム情報から動的に難易度定義を利用
  */
-export async function analyzeExcelStructure(file: File, gameId: string, game: Game): Promise<ExcelStructure> {
+export async function analyzeExcelStructure(
+  file: File, 
+  gameId: string, 
+  game: Game, 
+  firstRowOnly: boolean = false
+): Promise<ExcelStructure> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     
@@ -532,20 +618,24 @@ export async function analyzeExcelStructure(file: File, gameId: string, game: Ga
         // シートの範囲を取得
         const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
         
-        // ヘッダー行の検出（空でない行を探す）
+        // firstRowOnlyがtrueの場合、最初の行をヘッダー行として使用
         let headerRow = 0;
-        for (let r = range.s.r; r <= Math.min(range.e.r, 10); r++) { // 最初の10行を検索
-          let hasContent = false;
-          for (let c = range.s.c; c <= range.e.c; c++) {
-            const cellAddress = XLSX.utils.encode_cell({ r, c });
-            if (worksheet[cellAddress] && worksheet[cellAddress].v) {
-              hasContent = true;
+        
+        if (!firstRowOnly) {
+          // ヘッダー行の検出（空でない行を探す）
+          for (let r = range.s.r; r <= Math.min(range.e.r, 10); r++) { // 最初の10行を検索
+            let hasContent = false;
+            for (let c = range.s.c; c <= range.e.c; c++) {
+              const cellAddress = XLSX.utils.encode_cell({ r, c });
+              if (worksheet[cellAddress] && worksheet[cellAddress].v) {
+                hasContent = true;
+                break;
+              }
+            }
+            if (hasContent) {
+              headerRow = r;
               break;
             }
-          }
-          if (hasContent) {
-            headerRow = r;
-            break;
           }
         }
         
@@ -559,35 +649,39 @@ export async function analyzeExcelStructure(file: File, gameId: string, game: Ga
         }
         
         // データ開始行を検出（ヘッダー行の次の空でない行）
+        // firstRowOnlyの場合はヘッダー行の次の行を使用
         let dataStartRow = headerRow + 1;
-        let foundData = false;
         
-        for (let r = headerRow + 1; r <= Math.min(range.e.r, headerRow + 10); r++) {
-          let rowHasContent = false;
+        if (!firstRowOnly) {
+          let foundData = false;
           
-          // 少なくとも2つのセルに内容があるかチェック
-          let contentCells = 0;
-          for (let c = range.s.c; c <= range.e.c; c++) {
-            const cellAddress = XLSX.utils.encode_cell({ r, c });
-            if (worksheet[cellAddress] && worksheet[cellAddress].v !== undefined) {
-              contentCells++;
-              if (contentCells >= 2) {
-                rowHasContent = true;
-                break;
+          for (let r = headerRow + 1; r <= Math.min(range.e.r, headerRow + 10); r++) {
+            let rowHasContent = false;
+            
+            // 少なくとも2つのセルに内容があるかチェック
+            let contentCells = 0;
+            for (let c = range.s.c; c <= range.e.c; c++) {
+              const cellAddress = XLSX.utils.encode_cell({ r, c });
+              if (worksheet[cellAddress] && worksheet[cellAddress].v !== undefined) {
+                contentCells++;
+                if (contentCells >= 2) {
+                  rowHasContent = true;
+                  break;
+                }
               }
+            }
+            
+            if (rowHasContent) {
+              dataStartRow = r;
+              foundData = true;
+              break;
             }
           }
           
-          if (rowHasContent) {
-            dataStartRow = 1;
-            foundData = true;
-            break;
+          if (!foundData) {
+            // データが見つからない場合はヘッダーの次の行をデータ開始行とする
+            dataStartRow = headerRow + 1;
           }
-        }
-        
-        if (!foundData) {
-          // データが見つからない場合はヘッダーの次の行をデータ開始行とする
-          dataStartRow = headerRow + 1;
         }
         
         // デバッグ情報の表示
@@ -604,18 +698,20 @@ export async function analyzeExcelStructure(file: File, gameId: string, game: Ga
         console.log('Column Mapping:', columnMapping);
         
         // 最初の数行のデータをサンプルとして読み取り（検証用）
-        const sampleRows = [];
-        for (let r = dataStartRow; r < Math.min(dataStartRow + 3, range.e.r + 1); r++) {
-          const sampleRow = [];
-          for (let c = range.s.c; c <= range.e.c; c++) {
-            const cellAddress = XLSX.utils.encode_cell({ r, c });
-            const cell = worksheet[cellAddress];
-            sampleRow.push(cell ? cell.v : null);
+        if (!firstRowOnly) {
+          const sampleRows = [];
+          for (let r = dataStartRow; r < Math.min(dataStartRow + 3, range.e.r + 1); r++) {
+            const sampleRow = [];
+            for (let c = range.s.c; c <= range.e.c; c++) {
+              const cellAddress = XLSX.utils.encode_cell({ r, c });
+              const cell = worksheet[cellAddress];
+              sampleRow.push(cell ? cell.v : null);
+            }
+            sampleRows.push(sampleRow);
           }
-          sampleRows.push(sampleRow);
+          
+          console.log('Sample Data Rows:', sampleRows);
         }
-        
-        console.log('Sample Data Rows:', sampleRows);
         
         resolve({
           gameId,

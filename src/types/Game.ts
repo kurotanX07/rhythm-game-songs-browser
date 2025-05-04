@@ -6,6 +6,30 @@ export interface DifficultyDefinition {
   order: number;     // 表示順序
 }
 
+// Excelファイルの列マッピング情報
+export interface GameExcelMapping {
+  headerRow: number;
+  dataStartRow: number;
+  columnMapping: {
+    songNo: number;
+    name: number;
+    implementationNo?: number;
+    difficulties: Record<string, number>;
+    combos: Record<string, number>;
+    youtubeUrls: Record<string, number>;
+    info: {
+      artist?: number;
+      lyricist?: number;
+      composer?: number;
+      arranger?: number;
+      duration?: number;
+      bpm?: number;
+      addedDate?: number;
+      tags?: number;
+    };
+  };
+}
+
 export interface Game {
   id: string;
   title: string;
@@ -13,5 +37,6 @@ export interface Game {
   imageUrl?: string;
   songCount: number;
   lastUpdated: Date;
-  difficulties: DifficultyDefinition[]; // 必須フィールド
+  difficulties: DifficultyDefinition[];
+  excelMapping?: GameExcelMapping; // 追加: Excel構造のマッピング情報
 }

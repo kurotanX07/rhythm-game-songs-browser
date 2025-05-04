@@ -1,3 +1,4 @@
+// src/services/songService.ts
 import { 
   collection, doc, getDocs, getDoc, setDoc, query, 
   where, orderBy, limit, deleteDoc, writeBatch, serverTimestamp,
@@ -33,7 +34,8 @@ export async function getGames(): Promise<Game[]> {
       imageUrl: data.imageUrl,
       songCount: data.songCount,
       lastUpdated: data.lastUpdated?.toDate() || new Date(),
-      difficulties: data.difficulties || [...DEFAULT_DIFFICULTIES] // Add default difficulties if not present
+      difficulties: data.difficulties || [...DEFAULT_DIFFICULTIES],
+      excelMapping: data.excelMapping || undefined // Excel構造のマッピング情報を追加
     };
   });
 }
@@ -56,7 +58,8 @@ export async function getGame(gameId: string): Promise<Game | null> {
     imageUrl: data.imageUrl,
     songCount: data.songCount,
     lastUpdated: data.lastUpdated?.toDate() || new Date(),
-    difficulties: data.difficulties || [...DEFAULT_DIFFICULTIES] // Add default difficulties if not present
+    difficulties: data.difficulties || [...DEFAULT_DIFFICULTIES],
+    excelMapping: data.excelMapping || undefined // Excel構造のマッピング情報を追加
   };
 }
 
@@ -66,10 +69,11 @@ export async function getGame(gameId: string): Promise<Game | null> {
 export async function saveGame(game: Game): Promise<void> {
   await setDoc(doc(db, GAMES_COLLECTION, game.id), {
     title: game.title,
-    description: game.description,
-    imageUrl: game.imageUrl,
+    description: game.description || null,
+    imageUrl: game.imageUrl || null,
     songCount: game.songCount,
     difficulties: game.difficulties,
+    excelMapping: game.excelMapping || null, // Excel構造のマッピング情報を保存
     lastUpdated: serverTimestamp()
   });
 }

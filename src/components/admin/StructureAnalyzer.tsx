@@ -1,3 +1,4 @@
+// src/components/admin/StructureAnalyzer.tsx
 import React, { useState } from 'react';
 import {
   Box, Typography, Button, FormControl, InputLabel, Select,
@@ -60,7 +61,12 @@ const StructureAnalyzer: React.FC = () => {
   
   // 列マッピング更新ハンドラ
   const handleUpdateMapping = (field: string, subField: string | null, columnIndex: number) => {
-    updateMapping(field, subField, columnIndex);
+    if (!structure) return;
+    
+    // 更新関数を取得して実行
+    const updater = updateMapping(structure, field, subField);
+    // 列番号を渡して構造を更新
+    updater(columnIndex);
   };
   
   // 成功メッセージをクリア
