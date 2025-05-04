@@ -91,6 +91,12 @@ export function useExcelParser() {
       setLoading(true);
       setError(null);
       
+      // ゲーム情報を取得
+      const gameData = await getGame(gameId);
+      if (!gameData) {
+        throw new Error(`ゲームID "${gameId}" の情報が見つかりません`);
+      }
+      
       // 構造情報を取得または解析
       let excelStructure = forceReanalyze ? null : structure;
       
@@ -99,7 +105,7 @@ export function useExcelParser() {
         excelStructure = forceReanalyze ? null : await getExcelStructure(gameId);
         
         if (!excelStructure) {
-          excelStructure = await analyzeExcelStructure(file, gameId);
+          excelStructure = await analyzeExcelStructure(file, gameId, gameData);
           await saveExcelStructure(excelStructure);
         }
         
@@ -107,12 +113,14 @@ export function useExcelParser() {
       }
       
       // 楽曲データを解析
-      const parsedSongs = await parseExcelFile(file, excelStructure);
+      const parsedSongs = await parseExcelFile(file, excelStructure, gameData);
       setSongs(parsedSongs);
       
       return parsedSongs;
-    } catch (err) {
-      // Error handling...
+    } catch (err: any) {
+      console.error('ファイル解析エラー:', err);
+      setError(err.message || 'Excelファイルの解析に失敗しました');
+      throw err;
     } finally {
       setLoading(false);
     }

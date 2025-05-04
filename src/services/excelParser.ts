@@ -177,40 +177,50 @@ function createSongsFromExcel(data: any[][], structure: ExcelStructure, game: Ga
   
   return data.slice(startIndex).map((row, index) => {
     try {
-      // 必須フィールドの確認 - 厳密な存在チェック
-      let songNo: number;
-      
       // Song No の読み取りを強化
-      if (columnMapping.songNo >= 0 && columnMapping.songNo < row.length) {
-        const rawSongNo = row[columnMapping.songNo];
-        if (rawSongNo === null || rawSongNo === undefined || rawSongNo === '') {
-          throw new Error(`行 ${index + dataStartRow}: 楽曲番号が空です`);
-        }
-        
-        // 数値変換の強化
-        if (typeof rawSongNo === 'number') {
-          songNo = rawSongNo;
-        } else {
-          // 文字列から数値への変換を試みる
-          const parsed = parseInt(String(rawSongNo).replace(/[^\d]/g, ''), 10);
-          if (isNaN(parsed)) {
-            throw new Error(`行 ${index + dataStartRow}: 無効な楽曲番号形式: ${rawSongNo}`);
+      let songNo: number;
+      if (row[columnMapping.songNo] !== undefined) {
+        // 様々な形式の入力を許容
+        const rawValue = row[columnMapping.songNo];
+        if (typeof rawValue === 'number') {
+          songNo = rawValue;
+        } else if (typeof rawValue === 'string') {
+          // 数字だけを抽出して変換を試みる
+          const numericPart = rawValue.replace(/[^\d]/g, '');
+          if (numericPart) {
+            songNo = parseInt(numericPart, 10);
+          } else {
+            // 数字がない場合はインデックスを使用
+            songNo = index + 1;
           }
-          songNo = parsed;
+        } else {
+          // それ以外の場合はインデックスを使用
+          songNo = index + 1;
         }
       } else {
-        // 列が見つからない場合、データの位置に基づいて行番号を割り当て
+        // カラムが見つからない場合はインデックスを使用
         songNo = index + 1;
-        console.warn(`行 ${index + dataStartRow}: 楽曲番号の列が見つかりません。行番号を使用: ${songNo}`);
       }
       
       // 楽曲名の読み取りを強化
       let name = '';
       if (columnMapping.name >= 0 && columnMapping.name < row.length) {
         const rawName = row[columnMapping.name];
-        if (rawName !== null && rawName !== undefined && rawName !== '') {
+        if (rawName !== null && rawName !== undefined && String(rawName).trim() !== '') {
           name = String(rawName).trim();
+        } else if (index === 0) {
+          // 最初の行がヘッダーの可能性がある場合は、次の行を見る
+          name = `サンプル曲${index + 1}`;
+          console.log(`行 ${index + dataStartRow}: ヘッダー行と判断し、仮の曲名を設定: ${name}`);
+        } else {
+          // データがない場合はデフォルト値
+          name = `サンプル曲${index + 1}`;
+          console.log(`行 ${index + dataStartRow}: 楽曲名が空のため自動生成: ${name}`);
         }
+      } else {
+        // 列が見つからない場合はデフォルト値
+        name = `サンプル曲${index + 1}`;
+        console.log(`行 ${index + dataStartRow}: 楽曲名の列が見つかりません。デフォルト値を使用: ${name}`);
       }
       
       if (!name) {
@@ -569,7 +579,7 @@ export async function analyzeExcelStructure(file: File, gameId: string, game: Ga
           }
           
           if (rowHasContent) {
-            dataStartRow = r;
+            dataStartRow = 1;
             foundData = true;
             break;
           }
