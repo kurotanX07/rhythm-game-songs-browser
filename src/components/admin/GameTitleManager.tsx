@@ -135,7 +135,7 @@ const GameTitleManager: React.FC = () => {
         order: diff.order !== undefined ? diff.order : index
       }));
       
-      // 重要: 空の文字列は null に変換（undefined は使用しない）
+      // 重要: 空の文字列は null に変換
       const descriptionValue = description.trim() || null;
       const imageUrlValue = imageUrl.trim() || null;
       

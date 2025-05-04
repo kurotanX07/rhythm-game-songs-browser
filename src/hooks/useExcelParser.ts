@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Song } from '../types/Song';
 import { ExcelStructure } from '../types/ExcelStructure';
 import { parseExcelFile, analyzeExcelStructure, updateColumnMapping } from '../services/excelParser';
-import { saveExcelStructure, getExcelStructure, saveSongs, deleteSongsByGameId } from '../services/songService';
+import { saveExcelStructure, getExcelStructure, saveSongs, deleteSongsByGameId, getGame } from '../services/songService';
 import { uploadExcelFile } from '../services/storageService';
+import { Game } from '../types/Game';
 
 export function useExcelParser() {
   const [songs, setSongs] = useState<Song[]>([]);
@@ -19,12 +20,18 @@ export function useExcelParser() {
       setLoading(true);
       setError(null);
       
+      // ゲーム情報を取得
+      const gameData = await getGame(gameId);
+      if (!gameData) {
+        throw new Error(`ゲームID "${gameId}" の情報が見つかりません`);
+      }
+      
       // 既存の構造情報を取得
       let excelStructure = await getExcelStructure(gameId);
       
       // 構造情報がない場合は自動解析
       if (!excelStructure) {
-        excelStructure = await analyzeExcelStructure(file, gameId);
+        excelStructure = await analyzeExcelStructure(file, gameId, gameData);
       }
       
       setStructure(excelStructure);
@@ -79,16 +86,17 @@ export function useExcelParser() {
   /**
    * Excelファイルを解析して楽曲データを取得する
    */
-  const parseExcel = async (file: File, gameId: string): Promise<Song[]> => {
+  const parseExcel = async (file: File, gameId: string, forceReanalyze = false): Promise<Song[]> => {
     try {
       setLoading(true);
       setError(null);
       
       // 構造情報を取得または解析
-      let excelStructure = structure;
+      let excelStructure = forceReanalyze ? null : structure;
       
       if (!excelStructure) {
-        excelStructure = await getExcelStructure(gameId);
+        // Only get from Firestore if not forcing reanalysis
+        excelStructure = forceReanalyze ? null : await getExcelStructure(gameId);
         
         if (!excelStructure) {
           excelStructure = await analyzeExcelStructure(file, gameId);
@@ -103,10 +111,8 @@ export function useExcelParser() {
       setSongs(parsedSongs);
       
       return parsedSongs;
-    } catch (err: any) {
-      console.error('Excel解析エラー:', err);
-      setError(err.message || 'Excelファイルの解析に失敗しました');
-      throw err;
+    } catch (err) {
+      // Error handling...
     } finally {
       setLoading(false);
     }

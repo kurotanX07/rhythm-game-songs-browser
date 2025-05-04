@@ -82,7 +82,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
   // YouTubeリンク
   const handleYouTubeClick = (
     event: React.MouseEvent<HTMLButtonElement>,
-    url?: string
+    url?: string | null  // Changed to accept null values too
   ) => {
     event.stopPropagation();
     

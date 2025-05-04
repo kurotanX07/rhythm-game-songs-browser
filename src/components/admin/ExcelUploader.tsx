@@ -10,6 +10,7 @@ import { useExcelParser } from '../../hooks/useExcelParser';
 import { useSongData } from '../../contexts/SongDataContext';
 import { Game } from '../../types/Game';
 import { Song } from '../../types/Song';
+import { FormControlLabel, Checkbox } from '@mui/material';
 
 const ExcelUploader: React.FC = () => {
   const { games, refreshData } = useSongData();
@@ -47,6 +48,8 @@ const ExcelUploader: React.FC = () => {
     fileInputRef.current?.click();
   };
   
+  const [reanalyzeStructure, setReanalyzeStructure] = useState<boolean>(false);
+
   // ファイル解析ハンドラ
   const handleParseFile = async () => {
     if (!file || !selectedGameId) return;
@@ -57,12 +60,12 @@ const ExcelUploader: React.FC = () => {
         throw new Error('選択されたゲームが見つかりません');
       }
       
-      // ファイルを解析
-      const parsedSongs = await parseExcel(file, selectedGameId);
+      // Pass reanalyzeStructure flag to force reanalysis if needed
+      const parsedSongs = await parseExcel(file, selectedGameId, reanalyzeStructure);
       
-      // 次のステップへ
+      // Next step...
       setActiveStep(2);
-    } catch (err: any) {
+    } catch (err) {
       console.error('ファイル解析エラー:', err);
     }
   };
@@ -181,6 +184,19 @@ const ExcelUploader: React.FC = () => {
             <Typography variant="body2" paragraph>
               選択したExcelファイルを解析して楽曲データを取得します。
             </Typography>
+            
+            {/* ここに新しいチェックボックスを追加 */}
+            <FormControlLabel
+              control={
+                <Checkbox
+                  checked={reanalyzeStructure}
+                  onChange={(e) => setReanalyzeStructure(e.target.checked)}
+                  disabled={loading}
+                />
+              }
+              label="Excel構造を再解析する（列の変更がある場合）"
+            />
+            
             <Button
               variant="contained"
               onClick={handleParseFile}

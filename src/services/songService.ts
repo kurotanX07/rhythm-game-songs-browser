@@ -134,15 +134,50 @@ export async function saveSongs(songs: Song[]): Promise<void> {
   const batch = writeBatch(db);
   
   songs.forEach(song => {
-    const songRef = doc(db, SONGS_COLLECTION, song.id);
-    batch.set(songRef, {
+    // ベースデータの検証と修正
+    if (isNaN(song.songNo) || !song.name) {
+      console.error('Invalid song data, skipping:', song);
+      return; // Skip this song
+    }
+    
+    // IDの作成
+    const songId = `${song.gameId}_${Math.floor(song.songNo)}`;
+    const songRef = doc(db, SONGS_COLLECTION, songId);
+    
+    // Firebaseに保存するデータを正規化（undefinedをnullに変換）
+    const songData = {
       gameId: song.gameId,
-      songNo: song.songNo,
-      implementationNo: song.implementationNo,
+      songNo: Math.floor(song.songNo),
+      implementationNo: song.implementationNo !== undefined && song.implementationNo !== null
+        ? Math.floor(song.implementationNo) 
+        : null,
       name: song.name,
-      difficulties: song.difficulties,
-      info: song.info
+      difficulties: {} as Record<string, any>, // 型を明示的に指定
+      info: {
+        artist: song.info.artist || null,
+        lyricist: song.info.lyricist || null,
+        composer: song.info.composer || null,
+        arranger: song.info.arranger || null,
+        duration: song.info.duration || null,
+        bpm: song.info.bpm !== undefined && song.info.bpm !== null ? Number(song.info.bpm) : null,
+        addedDate: song.info.addedDate instanceof Date && !isNaN(song.info.addedDate.getTime()) 
+          ? song.info.addedDate 
+          : null,
+        tags: Array.isArray(song.info.tags) ? song.info.tags : null
+      }
+    };
+    
+    // 難易度データの正規化
+    Object.keys(song.difficulties).forEach(diffId => {
+      const diff = song.difficulties[diffId];
+      songData.difficulties[diffId] = {
+        level: diff.level !== undefined && diff.level !== null ? Number(diff.level) : null,
+        combo: diff.combo !== undefined && diff.combo !== null ? Number(diff.combo) : null,
+        youtubeUrl: diff.youtubeUrl || null
+      };
     });
+    
+    batch.set(songRef, songData);
   });
   
   await batch.commit();
