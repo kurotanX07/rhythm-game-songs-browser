@@ -508,59 +508,60 @@ function getSongInfoFromArray(row: any[], mapping: ColumnMapping): SongInfo {
     const addedDate = row[mapping.info.addedDate];
     if (addedDate) {
       try {
-        // Excelの日付をJavaScriptのDateに変換
-        if (typeof addedDate === 'number') {
-          // Excel日付形式の場合（シリアル値）
-          // Excel uses serial numbers starting from 1/1/1900 (Windows) or 1/1/1904 (Mac)
-          // 25569 is the number of days between 1/1/1900 and 1/1/1970 (Unix epoch)
+        // If it's a date object
+        if (addedDate instanceof Date) {
+          info.addedDate = addedDate;
+        }
+        // If it's a number (Excel date serial)
+        else if (typeof addedDate === 'number') {
+          // Excel uses serial numbers starting from 1/1/1900
           const date = new Date(Math.round((addedDate - 25569) * 86400 * 1000));
           
-          // Validate the date is reasonable (between 1990 and current year + 1)
+          // Validate the date is reasonable
           const currentYear = new Date().getFullYear();
           if (date.getFullYear() >= 1990 && date.getFullYear() <= currentYear + 1) {
             info.addedDate = date;
           } else {
-            // If date is outside reasonable range, store as null
             info.addedDate = null;
           }
-        } else {
-          // 文字列の場合はフォーマットを判断
+        }
+        // If it's a string, try to parse it
+        else {
           const dateStr = String(addedDate).trim();
           
-          // Try to parse based on common formats
-          let date = null;
-          // yyyy/MM/dd or yyyy-MM-dd format
-          if (/^\d{4}[\/\-](0[1-9]|1[0-2])[\/\-](0[1-9]|[12][0-9]|3[01])$/.test(dateStr)) {
-            date = new Date(dateStr.replace(/-/g, '/'));  // Convert dash to slash for safer parsing
-          } 
-          // dd/MM/yyyy or dd-MM-yyyy format
-          else if (/^(0[1-9]|[12][0-9]|3[01])[\/\-](0[1-9]|1[0-2])[\/\-]\d{4}$/.test(dateStr)) {
-            const parts = dateStr.replace(/-/g, '/').split('/');
-            date = new Date(`${parts[2]}/${parts[1]}/${parts[0]}`);
+          // Already in YYYY/MM/DD format
+          if (/^\d{4}\/\d{2}\/\d{2}$/.test(dateStr)) {
+            info.addedDate = new Date(dateStr);
           }
-          // Custom Japanese format like "2020年12月25日"
+          // YYYY-MM-DD format
+          else if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+            info.addedDate = new Date(dateStr.replace(/-/g, '/'));
+          }
+          // DD/MM/YYYY format
+          else if (/^\d{2}\/\d{2}\/\d{4}$/.test(dateStr)) {
+            const parts = dateStr.split('/');
+            info.addedDate = new Date(`${parts[2]}/${parts[1]}/${parts[0]}`);
+          }
+          // Japanese format YYYY年MM月DD日
           else if (/^(\d{4})年(\d{1,2})月(\d{1,2})日$/.test(dateStr)) {
             const matches = dateStr.match(/^(\d{4})年(\d{1,2})月(\d{1,2})日$/);
             if (matches && matches.length === 4) {
-              date = new Date(Number(matches[1]), Number(matches[2]) - 1, Number(matches[3]));
+              info.addedDate = new Date(Number(matches[1]), Number(matches[2]) - 1, Number(matches[3]));
             }
-          } 
-          // If above formats fail, try standard Date parsing
-          else {
-            date = new Date(dateStr);
           }
-          
-          // Final validation
-          if (date && !isNaN(date.getTime())) {
-            info.addedDate = date;
-          } else {
-            // If parsing failed, store as null
-            info.addedDate = null;
+          // Other formats - try standard Date parsing
+          else {
+            const date = new Date(dateStr);
+            if (!isNaN(date.getTime())) {
+              info.addedDate = date;
+            } else {
+              info.addedDate = null;
+            }
           }
         }
       } catch (error) {
         console.error('Date parsing error:', error, 'Value was:', addedDate);
-        info.addedDate = null; // Set to null on error
+        info.addedDate = null;
       }
     }
   }

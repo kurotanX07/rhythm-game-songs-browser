@@ -80,15 +80,47 @@ export async function saveGame(game: Game): Promise<void> {
 
 /**
  * 楽曲一覧を取得する
+ * NOTE: This query requires a composite index on:
+ * - Collection: songs
+ * - Fields indexed: gameId (Ascending), songNo (Ascending)
+ * Create it at: https://console.firebase.google.com/project/rhythm-game-app/firestore/indexes
  */
 export async function getSongs(gameId: string): Promise<Song[]> {
-  const songsQuery = query(
-    collection(db, SONGS_COLLECTION),
-    where('gameId', '==', gameId),
-    orderBy('songNo', 'asc')
-  );
-  
-  const songsSnapshot = await getDocs(songsQuery);
+  try {
+    // First attempt with the full query (requires index)
+    const songsQuery = query(
+      collection(db, SONGS_COLLECTION),
+      where('gameId', '==', gameId),
+      orderBy('songNo', 'asc')
+    );
+    
+    const songsSnapshot = await getDocs(songsQuery);
+    return processSongsSnapshot(songsSnapshot);
+  } catch (error: any) {
+    // If we get an index error, fall back to unordered query
+    if (error.code === 'failed-precondition' && error.message.includes('index')) {
+      console.warn('Firestore index not yet ready. Using unordered query as fallback.');
+      console.warn('Please create the required index at Firebase console.');
+      
+      // Fallback query without ordering (doesn't require index)
+      const fallbackQuery = query(
+        collection(db, SONGS_COLLECTION),
+        where('gameId', '==', gameId)
+      );
+      
+      const fallbackSnapshot = await getDocs(fallbackQuery);
+      // Sort results in memory instead
+      const songs = processSongsSnapshot(fallbackSnapshot);
+      return songs.sort((a, b) => a.songNo - b.songNo);
+    }
+    
+    // For other errors, rethrow
+    throw error;
+  }
+}
+
+// Helper function to process song snapshot
+function processSongsSnapshot(songsSnapshot: QuerySnapshot<DocumentData>): Song[] {
   return songsSnapshot.docs.map(doc => {
     const data = doc.data();
     return {
@@ -132,6 +164,54 @@ export async function getSong(songId: string): Promise<Song | null> {
 }
 
 /**
+ * Format duration string to 00:00 format
+ */
+export function formatDurationString(duration: string): string {
+  // If already in 00:00 format, return as is
+  if (/^\d{1,2}:\d{2}$/.test(duration)) {
+    return duration;
+  }
+  
+  // Try to extract minutes and seconds from various formats
+  let minutes = 0;
+  let seconds = 0;
+  
+  // Try to parse as MM:SS or M:SS
+  const timeRegex = /(\d+):(\d+)/;
+  const timeMatch = duration.match(timeRegex);
+  
+  if (timeMatch) {
+    minutes = parseInt(timeMatch[1], 10);
+    seconds = parseInt(timeMatch[2], 10);
+  } else {
+    // Try to parse as seconds only
+    const totalSeconds = parseInt(duration.replace(/[^\d]/g, ''), 10);
+    if (!isNaN(totalSeconds)) {
+      minutes = Math.floor(totalSeconds / 60);
+      seconds = totalSeconds % 60;
+    }
+  }
+  
+  // Format as 00:00
+  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}
+
+/**
+ * Format date string to YYYY/MM/DD format
+ */
+export function formatDateString(date: Date | null): string | null {
+  if (!date || isNaN(date.getTime())) {
+    return null;
+  }
+  
+  const year = date.getFullYear();
+  const month = (date.getMonth() + 1).toString().padStart(2, '0');
+  const day = date.getDate().toString().padStart(2, '0');
+  
+  return `${year}/${month}/${day}`;
+}
+
+/**
  * 楽曲一覧を保存する
  */
 export async function saveSongs(songs: Song[]): Promise<void> {
@@ -147,6 +227,11 @@ export async function saveSongs(songs: Song[]): Promise<void> {
     // IDの作成
     const songId = `${song.gameId}_${Math.floor(song.songNo)}`;
     const songRef = doc(db, SONGS_COLLECTION, songId);
+    
+    // Format duration if present
+    if (song.info.duration) {
+      song.info.duration = formatDurationString(song.info.duration);
+    }
     
     // Firebaseに保存するデータを正規化（undefinedをnullに変換）
     const songData = {
@@ -299,4 +384,24 @@ export function normalizeSongForUpload(song: Song): DocumentData {
   }
   
   return normalized;
+}
+
+/**
+ * ゲームの楽曲数を更新する
+ */
+export async function updateGameSongCount(gameId: string, songCount: number): Promise<void> {
+  const gameRef = doc(db, GAMES_COLLECTION, gameId);
+  
+  // Get the current game data
+  const gameDoc = await getDoc(gameRef);
+  if (!gameDoc.exists()) {
+    throw new Error(`Game with ID "${gameId}" not found`);
+  }
+  
+  // Update only the songCount field, preserving all other fields
+  await setDoc(gameRef, {
+    ...gameDoc.data(),
+    songCount: songCount,
+    lastUpdated: serverTimestamp()
+  });
 }

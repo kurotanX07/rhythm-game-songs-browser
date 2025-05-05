@@ -26,14 +26,35 @@ const AdminDashboard: React.FC = () => {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        // 統計データを集計
+        // Count games
         const gameCount = games.length;
-        const songCount = songs.length;
         
-        // 最近の更新情報を取得
+        // Count songs directly from the songs collection
+        let songCount = 0;
+        
+        // For each game, get the actual song count
+        for (const game of games) {
+          const songsQuery = query(
+            collection(db, 'songs'),
+            where('gameId', '==', game.id)
+          );
+          const snapshot = await getDocs(songsQuery);
+          const actualSongCount = snapshot.docs.length;
+          
+          // If the game's songCount doesn't match the actual count, update it
+          if (game.songCount !== actualSongCount) {
+            console.warn(`Game ${game.id} has songCount=${game.songCount} but actually has ${actualSongCount} songs`);
+            // Optionally, you could update the game document here:
+            // await updateGameSongCount(game.id, actualSongCount);
+          }
+          
+          songCount += actualSongCount;
+        }
+        
+        // Get recent updates
         const recentUpdates: { title: string, date: Date }[] = [];
         
-        // Firestoreからデータが取得できたら処理
+        // Set stats
         setStats({
           totalGames: gameCount,
           totalSongs: songCount,

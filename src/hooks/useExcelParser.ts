@@ -1,16 +1,28 @@
+// src/hooks/useExcelParser.ts
 import { useState } from 'react';
 import { Song } from '../types/Song';
 import { ExcelStructure } from '../types/ExcelStructure';
 import { parseExcelFile, analyzeExcelStructure, updateColumnMapping, analyzeExcelFirstRow } from '../services/excelParser';
-import { saveExcelStructure, getExcelStructure, saveSongs, deleteSongsByGameId, getGame } from '../services/songService';
+import { saveExcelStructure, getExcelStructure, saveSongs, deleteSongsByGameId, getGame, formatDurationString } from '../services/songService';
 import { uploadExcelFile } from '../services/storageService';
 import { Game } from '../types/Game';
+// At the top of useExcelParser.ts, update the import
+import { 
+  saveExcelStructure, 
+  getExcelStructure, 
+  saveSongs, 
+  deleteSongsByGameId, 
+  getGame, 
+  formatDurationString,
+  updateGameSongCount // Add this import
+} from '../services/songService';
 
 export function useExcelParser() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [structure, setStructure] = useState<ExcelStructure | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
   
   /**
    * Excelファイルの最初の行だけを解析して構造を決定する
@@ -142,9 +154,22 @@ export function useExcelParser() {
       
       // 楽曲データを解析
       const parsedSongs = await parseExcelFile(file, excelStructure, gameData);
-      setSongs(parsedSongs);
       
-      return parsedSongs;
+      // Format the durations to 00:00 format
+      const formattedSongs = parsedSongs.map(song => ({
+        ...song,
+        info: {
+          ...song.info,
+          // Format duration as 00:00 if it exists
+          duration: song.info.duration 
+            ? formatDurationString(song.info.duration) 
+            : song.info.duration
+        }
+      }));
+      
+      setSongs(formattedSongs);
+      
+      return formattedSongs;
     } catch (err: any) {
       console.error('ファイル解析エラー:', err);
       setError(err.message || 'Excelファイルの解析に失敗しました');
@@ -161,15 +186,54 @@ export function useExcelParser() {
     try {
       setLoading(true);
       setError(null);
+      setUploadProgress(0);
+      
+      // Step 1: Validate the file
+      if (file.size > 50 * 1024 * 1024) { // 50MB limit
+        throw new Error('Excelファイルが大きすぎます (50MB以上)。小さいファイルに分割するか、不要なデータを削除してください。');
+      }
+      
+      // Step 2: Save the song data to Firestore
+      console.log(`Saving ${songs.length} songs to Firestore...`);
       
       // 既存の楽曲を削除
       await deleteSongsByGameId(gameId);
       
-      // 新しい楽曲データを保存
-      await saveSongs(songs);
+      // Format song data
+      const formattedSongs = songs.map(song => ({
+        ...song,
+        info: {
+          ...song.info,
+          duration: song.info.duration 
+            ? formatDurationString(song.info.duration) 
+            : song.info.duration,
+        }
+      }));
       
-      // Excelファイルをストレージにアップロード
-      await uploadExcelFile(gameId, file);
+      // 新しい楽曲データを保存
+      await saveSongs(formattedSongs);
+      console.log('Songs saved to Firestore successfully');
+      
+      // Step 3: Update the game's songCount field
+      console.log(`Updating game's songCount to ${songs.length}...`);
+      await updateGameSongCount(gameId, songs.length);
+      
+      // Step 4: Upload the Excel file to Storage
+      console.log('Uploading Excel file to Storage...');
+      const uploadProgressCallback = (progress: number) => {
+        setUploadProgress(progress);
+        console.log(`Upload progress: ${progress.toFixed(1)}%`);
+      };
+      
+      const downloadUrl = await uploadExcelFile(gameId, file, uploadProgressCallback);
+      
+      if (!downloadUrl) {
+        console.warn('Excel file upload to Storage failed, but song data was saved to Firestore');
+        setError('楽曲データは保存されましたが、Excelファイルのアップロードに問題がありました。ネットワーク接続を確認して、再度お試しください。');
+      } else {
+        console.log('Excel file uploaded successfully');
+        setUploadProgress(100);
+      }
     } catch (err: any) {
       console.error('楽曲アップロードエラー:', err);
       setError(err.message || '楽曲データのアップロードに失敗しました');
@@ -184,6 +248,7 @@ export function useExcelParser() {
     structure,
     loading,
     error,
+    uploadProgress,
     analyzeExcel,
     analyzeExcelFirstRow,
     updateMapping,

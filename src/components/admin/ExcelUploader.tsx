@@ -78,16 +78,24 @@ const ExcelUploader: React.FC = () => {
       // 楽曲データをアップロード
       await uploadSongs(selectedGameId, songs, file);
       
-      // 成功メッセージを表示
-      setSuccess(`${songs.length}曲のデータをアップロードしました`);
+      // Check for errors from the upload process
+      if (error) {
+        // Error will be displayed automatically through the error state
+        // but we still advance to the next step since some data was saved
+        setActiveStep(3);
+        setSuccess(`${songs.length}曲のデータは保存されましたが、Excelファイルのアップロードに問題がありました。`);
+      } else {
+        // Full success
+        setSuccess(`${songs.length}曲のデータをアップロードしました`);
+        // 最終ステップへ
+        setActiveStep(3);
+      }
       
       // データを更新
       await refreshData();
-      
-      // 最終ステップへ
-      setActiveStep(3);
     } catch (err: any) {
       console.error('アップロードエラー:', err);
+      // Don't advance the step if a critical error occurred
     }
   };
   

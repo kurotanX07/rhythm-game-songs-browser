@@ -10,7 +10,7 @@ import { DEFAULT_DIFFICULTIES } from '../contexts/SongDataContext';
 export type UploadProgressCallback = (progress: number) => void;
 
 /**
- * Upload Excel file to Firebase Storage with progress tracking and chunking
+ * Upload Excel file to Firebase Storage with improved chunking and retry logic
  * @param gameId - Game ID for the upload
  * @param file - File to upload
  * @param progressCallback - Optional callback to report upload progress
@@ -22,33 +22,56 @@ export async function uploadExcelFile(
   progressCallback?: UploadProgressCallback
 ): Promise<string | null> {
   try {
+    // Create a unique filename with timestamp to avoid cache issues
+    const timestamp = new Date().getTime();
+    const fileName = `${file.name.replace(/\.[^/.]+$/, '')}_${timestamp}${file.name.match(/\.[^/.]+$/)?.[0] || ''}`;
+    
     // Create reference for the file path
-    const storageRef = ref(storage, `excel/${gameId}/${file.name}`);
+    const storageRef = ref(storage, `excel/${gameId}/${fileName}`);
+
+    // For large files (>10MB), show a warning in console
+    if (file.size > 10 * 1024 * 1024) {
+      console.warn('Large file detected, upload may take longer than expected');
+    }
     
     return new Promise((resolve, reject) => {
+      // Configure upload settings with improved retry behavior
+      const metadata = {
+        contentType: file.type,
+        customMetadata: {
+          gameId: gameId,
+          originalName: file.name,
+          uploadTimestamp: timestamp.toString()
+        }
+      };
+      
       // Use resumable upload for better handling of large files
-      const uploadTask = uploadBytesResumable(storageRef, file);
+      const uploadTask = uploadBytesResumable(storageRef, file, metadata);
       
       // Register three observers:
-      // 1. 'state_changed' observer, called any time the state changes
       uploadTask.on('state_changed', 
         // Progress observer
         (snapshot) => {
           const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-          console.log('Upload is ' + progress + '% done');
+          console.log('Upload is ' + progress.toFixed(1) + '% done');
           if (progressCallback) {
             progressCallback(progress);
           }
         }, 
-        // Error observer
+        // Error observer with improved error handling
         (error) => {
           console.error('Storage upload error:', error);
           
-          // Special handling for specific errors
           if (error.code === 'storage/retry-limit-exceeded') {
             console.warn('Upload retry limit exceeded, file may be too large or connection unstable');
-            // Return null instead of rejecting, so other operations can continue
+            // Return null instead of rejecting to allow operation to continue
             resolve(null);
+          } else if (error.code === 'storage/canceled') {
+            console.warn('Upload was canceled');
+            resolve(null);
+          } else if (error.code === 'storage/unauthorized') {
+            console.error('User does not have permission to upload to this location');
+            reject(new Error('Permission denied for file upload'));
           } else {
             reject(error);
           }
@@ -68,12 +91,9 @@ export async function uploadExcelFile(
     });
   } catch (error) {
     console.error('Excel file upload error:', error);
-    return null; // Return null instead of throwing to allow other operations to continue
+    return null;
   }
 }
-
-// Collection names
-const GAMES_COLLECTION = 'games';
 
 /**
  * Get games with proper difficulties property
@@ -116,3 +136,6 @@ export async function getGame(gameId: string): Promise<Game | null> {
     difficulties: data.difficulties || [...DEFAULT_DIFFICULTIES] // Add default difficulties
   };
 }
+
+// Collection names
+const GAMES_COLLECTION = 'games';
