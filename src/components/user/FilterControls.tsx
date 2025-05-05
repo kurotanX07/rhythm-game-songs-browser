@@ -22,7 +22,10 @@ export interface FilterOptions {
   tags: string[];
 }
 
-const FilterControls: React.FC<FilterControlsProps> = ({ onFilterChange, game }) => {
+const FilterControls: React.FC<FilterControlsProps> = ({ 
+  onFilterChange, 
+  game 
+}) => {
   const [searchText, setSearchText] = useState<string>('');
   const [difficulty, setDifficulty] = useState<string>('ALL');
   const [levelRange, setLevelRange] = useState<number[]>([1, 15]);
@@ -31,11 +34,21 @@ const FilterControls: React.FC<FilterControlsProps> = ({ onFilterChange, game })
   
   const difficulties = game?.difficulties || [];
   
+  // Get min and max levels from the game
+  const minLevel = game?.minLevel || 1;
+  const maxLevel = game?.maxLevel || 15;
+  
   useEffect(() => {
-    // ゲームが変更されたらフィルタをリセット
+    // Reset difficulty when game changes
     setDifficulty('ALL');
+    
+    // Reset level range when game changes
+    if (game) {
+      setLevelRange([game.minLevel || 1, game.maxLevel || 15]);
+    }
   }, [game]);
   
+  // Input handlers and filter updates remain the same
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newSearchText = event.target.value;
     setSearchText(newSearchText);
@@ -129,8 +142,8 @@ const FilterControls: React.FC<FilterControlsProps> = ({ onFilterChange, game })
             value={levelRange}
             onChange={handleLevelRangeChange}
             valueLabelDisplay="auto"
-            min={1}
-            max={15}
+            min={minLevel}
+            max={maxLevel}
             aria-labelledby="level-range-slider"
           />
         </Box>

@@ -1,8 +1,8 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.yourcompany.rhythmgamebrowser',
-  appName: 'リズムゲーム楽曲ブラウザ',
+  appId: 'com.kurotanx07.rhythmgamebrowser',
+  appName: 'rhythm-game-browser',
   webDir: 'build',
   bundledWebRuntime: false,
   plugins: {

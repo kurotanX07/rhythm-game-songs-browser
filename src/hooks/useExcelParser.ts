@@ -2,11 +2,7 @@
 import { useState } from 'react';
 import { Song } from '../types/Song';
 import { ExcelStructure } from '../types/ExcelStructure';
-import { parseExcelFile, analyzeExcelStructure, updateColumnMapping, analyzeExcelFirstRow } from '../services/excelParser';
-import { saveExcelStructure, getExcelStructure, saveSongs, deleteSongsByGameId, getGame, formatDurationString } from '../services/songService';
-import { uploadExcelFile } from '../services/storageService';
-import { Game } from '../types/Game';
-// At the top of useExcelParser.ts, update the import
+import { parseExcelFile, analyzeExcelStructure, updateColumnMapping, analyzeExcelFirstRow as analyzeFirstRow } from '../services/excelParser';
 import { 
   saveExcelStructure, 
   getExcelStructure, 
@@ -14,8 +10,10 @@ import {
   deleteSongsByGameId, 
   getGame, 
   formatDurationString,
-  updateGameSongCount // Add this import
+  updateGameSongCount
 } from '../services/songService';
+import { uploadExcelFile } from '../services/storageService';
+import { Game } from '../types/Game';
 
 export function useExcelParser() {
   const [songs, setSongs] = useState<Song[]>([]);
@@ -33,7 +31,7 @@ export function useExcelParser() {
       setError(null);
       
       // 最初の行のみ解析して構造を決定
-      const excelStructure = await analyzeExcelStructure(file, gameId, game, true);
+      const excelStructure = await analyzeFirstRow(file, gameId, game);
       
       setStructure(excelStructure);
       return excelStructure;
@@ -155,8 +153,25 @@ export function useExcelParser() {
       // 楽曲データを解析
       const parsedSongs = await parseExcelFile(file, excelStructure, gameData);
       
+      // データの検証とフィルタリング - 空の行や無効なデータを除外
+      const validatedSongs = parsedSongs.filter(song => {
+        // 必須フィールドの検証
+        if (!song.name || song.name.trim() === '') {
+          console.warn('Empty song name detected, filtering out:', song);
+          return false;
+        }
+        
+        // Song No の検証
+        if (typeof song.songNo !== 'number' || isNaN(song.songNo)) {
+          console.warn('Invalid songNo detected, filtering out:', song);
+          return false;
+        }
+        
+        return true;
+      });
+      
       // Format the durations to 00:00 format
-      const formattedSongs = parsedSongs.map(song => ({
+      const formattedSongs = validatedSongs.map(song => ({
         ...song,
         info: {
           ...song.info,
@@ -182,7 +197,7 @@ export function useExcelParser() {
   /**
    * 楽曲データをアップロードする
    */
-  const uploadSongs = async (gameId: string, songs: Song[], file: File): Promise<void> => {
+  const uploadSongs = async (gameId: string, songData: Song[], file: File): Promise<void> => {
     try {
       setLoading(true);
       setError(null);
@@ -193,14 +208,22 @@ export function useExcelParser() {
         throw new Error('Excelファイルが大きすぎます (50MB以上)。小さいファイルに分割するか、不要なデータを削除してください。');
       }
       
+      // 空の行や無効なデータを除外（念のための二重チェック）
+      const validSongs = songData.filter(song => {
+        return song && song.name && song.name.trim() !== '' && 
+               typeof song.songNo === 'number' && !isNaN(song.songNo);
+      });
+      
+      const validCount = validSongs.length;
+      
       // Step 2: Save the song data to Firestore
-      console.log(`Saving ${songs.length} songs to Firestore...`);
+      console.log(`Saving ${validCount} songs to Firestore...`);
       
       // 既存の楽曲を削除
       await deleteSongsByGameId(gameId);
       
       // Format song data
-      const formattedSongs = songs.map(song => ({
+      const formattedSongs = validSongs.map(song => ({
         ...song,
         info: {
           ...song.info,
@@ -212,11 +235,11 @@ export function useExcelParser() {
       
       // 新しい楽曲データを保存
       await saveSongs(formattedSongs);
-      console.log('Songs saved to Firestore successfully');
+      console.log(`${validCount} songs saved to Firestore successfully`);
       
-      // Step 3: Update the game's songCount field
-      console.log(`Updating game's songCount to ${songs.length}...`);
-      await updateGameSongCount(gameId, songs.length);
+      // Step 3: Update the game's songCount field with the exact count
+      console.log(`Updating game's songCount to ${validCount}...`);
+      await updateGameSongCount(gameId, validCount);
       
       // Step 4: Upload the Excel file to Storage
       console.log('Uploading Excel file to Storage...');

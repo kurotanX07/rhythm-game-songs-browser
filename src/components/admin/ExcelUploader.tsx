@@ -26,6 +26,10 @@ const ExcelUploader: React.FC = () => {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // 有効な楽曲数を取得 (空の行や無効なデータをフィルタリング)
+  const validSongCount = songs && Array.isArray(songs) ? 
+    songs.filter(song => song && song.name && song.name.trim() !== '').length : 0;
+  
   // ゲーム選択ハンドラ
   const handleGameChange = (event: React.ChangeEvent<{ value: unknown }>) => {
     setSelectedGameId(event.target.value as string);
@@ -72,21 +76,24 @@ const ExcelUploader: React.FC = () => {
   
   // アップロードハンドラ
   const handleUpload = async () => {
-    if (!file || !selectedGameId || songs.length === 0) return;
+    if (!file || !selectedGameId || validSongCount === 0) return;
     
     try {
-      // 楽曲データをアップロード
-      await uploadSongs(selectedGameId, songs, file);
+      // 空でない有効な楽曲のみをフィルタリング
+      const validSongs = songs.filter(song => song && song.name && song.name.trim() !== '');
+      
+      // 楽曲データをアップロード (フィルタリングされた曲のみ)
+      await uploadSongs(selectedGameId, validSongs, file);
       
       // Check for errors from the upload process
       if (error) {
         // Error will be displayed automatically through the error state
         // but we still advance to the next step since some data was saved
         setActiveStep(3);
-        setSuccess(`${songs.length}曲のデータは保存されましたが、Excelファイルのアップロードに問題がありました。`);
+        setSuccess(`${validSongCount}曲のデータは保存されましたが、Excelファイルのアップロードに問題がありました。`);
       } else {
         // Full success
-        setSuccess(`${songs.length}曲のデータをアップロードしました`);
+        setSuccess(`${validSongCount}曲のデータをアップロードしました`);
         // 最終ステップへ
         setActiveStep(3);
       }
@@ -220,7 +227,7 @@ const ExcelUploader: React.FC = () => {
           <StepLabel>データを確認してアップロード</StepLabel>
           <StepContent>
             <Typography variant="body2" paragraph>
-              {songs.length}曲のデータが取得されました。
+              {validSongCount}曲のデータが取得されました。
             </Typography>
             <Box sx={{ mb: 2 }}>
               <Button

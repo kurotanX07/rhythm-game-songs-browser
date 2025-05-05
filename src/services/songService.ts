@@ -388,8 +388,9 @@ export function normalizeSongForUpload(song: Song): DocumentData {
 
 /**
  * ゲームの楽曲数を更新する
+ * Improved version that updates the count based on actual songs in database
  */
-export async function updateGameSongCount(gameId: string, songCount: number): Promise<void> {
+export async function updateGameSongCount(gameId: string, songCount?: number): Promise<void> {
   const gameRef = doc(db, GAMES_COLLECTION, gameId);
   
   // Get the current game data
@@ -397,6 +398,19 @@ export async function updateGameSongCount(gameId: string, songCount: number): Pr
   if (!gameDoc.exists()) {
     throw new Error(`Game with ID "${gameId}" not found`);
   }
+  
+  // If songCount is not provided, count the actual songs in the database
+  if (songCount === undefined) {
+    const songsQuery = query(
+      collection(db, SONGS_COLLECTION),
+      where('gameId', '==', gameId)
+    );
+    
+    const songsSnapshot = await getDocs(songsQuery);
+    songCount = songsSnapshot.size;
+  }
+  
+  console.log(`Updating game ${gameId} song count to ${songCount}`);
   
   // Update only the songCount field, preserving all other fields
   await setDoc(gameRef, {

@@ -25,11 +25,11 @@ const GAMES_COLLECTION = 'games';
 
 // 標準の難易度設定
 const DEFAULT_DIFFICULTIES: DifficultyDefinition[] = [
-  { id: 'EASY', name: 'EASY', color: '#43a047', order: 0 },
-  { id: 'NORMAL', name: 'NORMAL', color: '#1976d2', order: 1 },
-  { id: 'HARD', name: 'HARD', color: '#ff9800', order: 2 },
-  { id: 'EXPERT', name: 'EXPERT', color: '#d32f2f', order: 3 },
-  { id: 'MASTER', name: 'MASTER', color: '#9c27b0', order: 4 }
+  { id: 'EASY', name: 'EASY', color: '#43a047', order: 0, minLevel: 1, maxLevel: 5 },
+  { id: 'NORMAL', name: 'NORMAL', color: '#1976d2', order: 1, minLevel: 3, maxLevel: 8 },
+  { id: 'HARD', name: 'HARD', color: '#ff9800', order: 2, minLevel: 6, maxLevel: 11 },
+  { id: 'EXPERT', name: 'EXPERT', color: '#d32f2f', order: 3, minLevel: 9, maxLevel: 13 },
+  { id: 'MASTER', name: 'MASTER', color: '#9c27b0', order: 4, minLevel: 12, maxLevel: 15 }
 ];
 
 const GameTitleManager: React.FC = () => {
@@ -57,6 +57,8 @@ const GameTitleManager: React.FC = () => {
   const [description, setDescription] = useState<string>('');
   const [imageUrl, setImageUrl] = useState<string>('');
   const [difficulties, setDifficulties] = useState<DifficultyDefinition[]>([...DEFAULT_DIFFICULTIES]);
+  const [gameMinLevel, setGameMinLevel] = useState<number>(1);
+  const [gameMaxLevel, setGameMaxLevel] = useState<number>(15);
   
   // Excelファイル選択関連
   const [excelFile, setExcelFile] = useState<File | null>(null);
@@ -80,9 +82,11 @@ const GameTitleManager: React.FC = () => {
       setTitle(game.title);
       setDescription(game.description || '');
       setImageUrl(game.imageUrl || '');
+      setGameMinLevel(game.minLevel !== undefined ? game.minLevel : 1);
+      setGameMaxLevel(game.maxLevel !== undefined ? game.maxLevel : 15);
       
       // 修正: difficulties が存在することを確認
-      if (game.difficulties && Array.isArray(game.difficulties)) {
+      if (game.difficulties && Array.isArray(game.difficulties) && game.difficulties.length > 0) {
         setDifficulties([...game.difficulties]);
       } else {
         // デフォルト値を使用
@@ -96,6 +100,8 @@ const GameTitleManager: React.FC = () => {
       setTitle('');
       setDescription('');
       setImageUrl('');
+      setGameMinLevel(1);
+      setGameMaxLevel(15);
       setDifficulties([...DEFAULT_DIFFICULTIES]);
     }
     
@@ -119,7 +125,14 @@ const GameTitleManager: React.FC = () => {
   const addDifficulty = () => {
     setDifficulties([
       ...difficulties,
-      { id: '', name: '', color: '#888888', order: difficulties.length }
+      { 
+        id: '', 
+        name: '', 
+        color: '#888888', 
+        order: difficulties.length,
+        minLevel: 1,
+        maxLevel: 15
+      }
     ]);
   };
   
@@ -199,13 +212,17 @@ const GameTitleManager: React.FC = () => {
           
           // 実際に構造を解析
           const customId = gameId.trim() || `game_${Date.now()}`;
-          const structure = await analyzeExcelFirstRow(excelFile, customId, {
+          const gameObj: Game = {
             id: customId,
             title: title || '新しいゲーム',
             songCount: 0,
             lastUpdated: new Date(),
-            difficulties: difficulties
-          });
+            difficulties: difficulties,
+            minLevel: gameMinLevel,
+            maxLevel: gameMaxLevel
+          };
+          
+          const structure = await analyzeExcelFirstRow(excelFile, customId, gameObj);
           
           setExcelStructure(structure);
           setExcelAnalysisComplete(true);
@@ -270,12 +287,14 @@ const GameTitleManager: React.FC = () => {
       
       const customId = gameId.trim() || `game_${Date.now()}`;
       
-      // 修正: difficulties を正しくフォーマット
+      // 各難易度のminLevelとmaxLevelを確保
       const formattedDifficulties = difficulties.map((diff, index) => ({
         id: diff.id,
         name: diff.name,
         color: diff.color,
-        order: diff.order !== undefined ? diff.order : index
+        order: diff.order !== undefined ? diff.order : index,
+        minLevel: diff.minLevel !== undefined ? diff.minLevel : 1,
+        maxLevel: diff.maxLevel !== undefined ? diff.maxLevel : 15
       }));
       
       // 重要: 空の文字列は null に変換
@@ -289,6 +308,8 @@ const GameTitleManager: React.FC = () => {
         imageUrl: imageUrlValue,
         songCount: isEditing ? currentGame?.songCount || 0 : 0,
         difficulties: formattedDifficulties,
+        minLevel: gameMinLevel || 1,
+        maxLevel: gameMaxLevel || 15,
         lastUpdated: serverTimestamp()
       };
       
@@ -432,6 +453,9 @@ const GameTitleManager: React.FC = () => {
                   <Typography variant="body2" color="text.secondary">
                     楽曲数: {game.songCount}曲
                   </Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    レベル範囲: {game.minLevel || 1} - {game.maxLevel || 15}
+                  </Typography>
                   {game.description && (
                     <Typography variant="body2" sx={{ mt: 1 }}>
                       {game.description}
@@ -525,28 +549,58 @@ const GameTitleManager: React.FC = () => {
           
           <Divider sx={{ my: 3 }} />
           
+          {/* ゲーム全体のレベル範囲設定 */}
+          <Box sx={{ mb: 2, mt: 3 }}>
+            <Typography variant="subtitle1" gutterBottom>
+              ゲーム全体のレベル範囲
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+              <TextField
+                label="最小レベル"
+                size="small"
+                type="number"
+                value={gameMinLevel !== undefined ? gameMinLevel : 1}
+                onChange={(e) => setGameMinLevel(parseInt(e.target.value) || 1)}
+                sx={{ width: '120px' }}
+              />
+              <TextField
+                label="最大レベル"
+                size="small"
+                type="number"
+                value={gameMaxLevel !== undefined ? gameMaxLevel : 15}
+                onChange={(e) => setGameMaxLevel(parseInt(e.target.value) || 15)}
+                sx={{ width: '120px' }}
+              />
+              <Typography variant="body2" color="text.secondary">
+                * フィルターのレベル範囲のデフォルト値として使用されます
+              </Typography>
+            </Box>
+          </Box>
+          
+          <Divider sx={{ my: 3 }} />
+          
           {/* 難易度設定セクション */}
           <Typography variant="h6" gutterBottom>
             難易度設定
           </Typography>
           <Box sx={{ mb: 2 }}>
             {difficulties.map((diff, index) => (
-              <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+              <Box key={index} sx={{ display: 'flex', alignItems: 'center', mb: 1, flexWrap: 'wrap', gap: 1 }}>
                 <TextField
                   label="ID"
                   size="small"
                   value={diff.id}
                   onChange={(e) => handleDifficultyChange(index, 'id', e.target.value)}
-                  sx={{ mr: 1, width: '100px' }}
+                  sx={{ width: '100px' }}
                 />
                 <TextField
                   label="表示名"
                   size="small"
                   value={diff.name}
                   onChange={(e) => handleDifficultyChange(index, 'name', e.target.value)}
-                  sx={{ mr: 1, width: '120px' }}
+                  sx={{ width: '120px' }}
                 />
-                <Box sx={{ display: 'flex', alignItems: 'center', mr: 1 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center' }}>
                   <Box sx={{ mr: 1 }}>色:</Box>
                   <input
                     type="color"
@@ -560,7 +614,23 @@ const GameTitleManager: React.FC = () => {
                   type="number"
                   value={diff.order !== undefined ? diff.order : index}
                   onChange={(e) => handleDifficultyChange(index, 'order', parseInt(e.target.value) || 0)}
-                  sx={{ mr: 1, width: '70px' }}
+                  sx={{ width: '70px' }}
+                />
+                <TextField
+                  label="最小Lv"
+                  size="small"
+                  type="number"
+                  value={diff.minLevel !== undefined ? diff.minLevel : 1}
+                  onChange={(e) => handleDifficultyChange(index, 'minLevel', parseInt(e.target.value) || 1)}
+                  sx={{ width: '80px' }}
+                />
+                <TextField
+                  label="最大Lv"
+                  size="small"
+                  type="number"
+                  value={diff.maxLevel !== undefined ? diff.maxLevel : 15}
+                  onChange={(e) => handleDifficultyChange(index, 'maxLevel', parseInt(e.target.value) || 15)}
+                  sx={{ width: '80px' }}
                 />
                 <IconButton onClick={() => removeDifficulty(index)} color="error" disabled={difficulties.length <= 1}>
                   <DeleteIcon fontSize="small" />

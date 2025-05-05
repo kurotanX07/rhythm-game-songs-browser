@@ -52,26 +52,6 @@ export async function parseExcelFile(file: File, structure: ExcelStructure, game
         }
         console.log('Header Row Raw Data:', headerRowData);
         
-        // 問題のある特定の列を直接探す
-        const columnNameHints = [
-          '楽曲No', '曲No', 'Song No', 'SongNo', 'No.',
-          '実装No', 'Implementation No', 'Impl No',
-          'APPEND', 'Special', 'SP', 'アペンド'
-        ];
-        
-        // ヘッダー行の各セルを調べて特定の文字列を含む列を探す
-        const directColumnMatches: Record<string, string> = {};
-        headerRowData.forEach((text, index) => {
-          if (text) {
-            columnNameHints.forEach(hint => {
-              if (String(text).toLowerCase().includes(hint.toLowerCase())) {
-                directColumnMatches[`${hint} -> column ${index}`] = text;
-              }
-            });
-          }
-        });
-        console.log('Direct Column Matches:', directColumnMatches);
-        
         // JSONに変換（列インデックスの調整を考慮）
         const jsonData = XLSX.utils.sheet_to_json(worksheet, {
           range: structure.headerRow,

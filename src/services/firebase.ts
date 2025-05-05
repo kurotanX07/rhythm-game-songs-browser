@@ -4,17 +4,16 @@ import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
 
-// Firebase configuration - You need to replace these with your actual Firebase project values
-// Or set them in your .env file as REACT_APP_FIREBASE_API_KEY etc.
+// Firebase configuration
+// First try to use environment variables, then fall back to hardcoded values if needed
 const firebaseConfig = {
-    apiKey: "AIzaSyDehw9IeFrsyl1Ot0LulKXFxFgDyFlDavs",
-    authDomain: "rhythm-game-app.firebaseapp.com",
-    projectId: "rhythm-game-app",
-    storageBucket: "rhythm-game-app.firebasestorage.app",
-    messagingSenderId: "884744923644",
-    appId: "1:884744923644:web:676f24c3c8de5610932a79",
-    measurementId: "G-WKDS7R7ZRZ"
-  };
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY || "AIzaSyDehw9IeFrsyl1Ot0LulKXFxFgDyFlDavs",
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN || "rhythm-game-app.firebaseapp.com",
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID || "rhythm-game-app",
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET || "rhythm-game-app.firebasestorage.app",
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID || "884744923644",
+  appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:884744923644:web:676f24c3c8de5610932a79"
+};
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
