@@ -11,6 +11,10 @@ import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
 import SpeedIcon from '@mui/icons-material/Speed';
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
+import PersonIcon from '@mui/icons-material/Person';
+import CreateIcon from '@mui/icons-material/Create';
+import MusicNoteOutlinedIcon from '@mui/icons-material/MusicNoteOutlined';
+import EditIcon from '@mui/icons-material/Edit';
 import YouTubePlayer from './YouTubePlayer';
 import { Song } from '../../types/Song';
 import { Game, DifficultyDefinition } from '../../types/Game';
@@ -24,20 +28,20 @@ const SongDetail: React.FC<SongDetailProps> = ({ song, game }) => {
   const navigate = useNavigate();
   const [selectedDifficulty, setSelectedDifficulty] = React.useState<string>('');
   
-  // ゲームの難易度を順序でソート
+  // Sort game difficulties by order
   const sortedDifficulties = React.useMemo(() => {
     if (!game?.difficulties) return [];
     return [...game.difficulties].sort((a, b) => a.order - b.order);
   }, [game]);
   
-  // 有効な難易度を取得
+  // Get available difficulties
   const availableDifficulties = React.useMemo(() => {
     return sortedDifficulties.filter(diff => 
       song.difficulties[diff.id] && song.difficulties[diff.id].level !== null
     );
   }, [song, sortedDifficulties]);
   
-  // 最初に利用可能な難易度を選択
+  // Select first available difficulty on load
   React.useEffect(() => {
     if (availableDifficulties.length > 0 && 
         (!selectedDifficulty || !song.difficulties[selectedDifficulty])) {
@@ -45,22 +49,22 @@ const SongDetail: React.FC<SongDetailProps> = ({ song, game }) => {
     }
   }, [song, availableDifficulties, selectedDifficulty]);
   
-  // 難易度タブ変更ハンドラ
+  // Difficulty tab change handler
   const handleDifficultyChange = (_: React.SyntheticEvent, newValue: string) => {
     setSelectedDifficulty(newValue);
   };
   
-  // 難易度定義を取得
+  // Get difficulty definition
   const getDifficultyDefinition = (id: string): DifficultyDefinition | undefined => {
     return game?.difficulties.find(d => d.id === id);
   };
   
-  // 一覧に戻るハンドラ
+  // Back to list handler
   const handleBackClick = () => {
     navigate('/songs');
   };
   
-  // 現在選択されている難易度情報
+  // Current selected difficulty info
   const currentDiffInfo = selectedDifficulty ? song.difficulties[selectedDifficulty] : null;
   const currentDiffDef = selectedDifficulty ? getDifficultyDefinition(selectedDifficulty) : null;
   
@@ -100,19 +104,39 @@ const SongDetail: React.FC<SongDetailProps> = ({ song, game }) => {
                   <Table size="small">
                     <TableBody>
                       <TableRow>
-                        <TableCell component="th" scope="row">アーティスト</TableCell>
+                        <TableCell component="th" scope="row" sx={{ width: '35%' }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <PersonIcon sx={{ mr: 1, fontSize: 'small' }} />
+                            アーティスト
+                          </Box>
+                        </TableCell>
                         <TableCell>{song.info.artist || '-'}</TableCell>
                       </TableRow>
                       <TableRow>
-                        <TableCell component="th" scope="row">作詞</TableCell>
+                        <TableCell component="th" scope="row">
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <CreateIcon sx={{ mr: 1, fontSize: 'small' }} />
+                            作詞
+                          </Box>
+                        </TableCell>
                         <TableCell>{song.info.lyricist || '-'}</TableCell>
                       </TableRow>
                       <TableRow>
-                        <TableCell component="th" scope="row">作曲</TableCell>
+                        <TableCell component="th" scope="row">
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <MusicNoteOutlinedIcon sx={{ mr: 1, fontSize: 'small' }} />
+                            作曲
+                          </Box>
+                        </TableCell>
                         <TableCell>{song.info.composer || '-'}</TableCell>
                       </TableRow>
                       <TableRow>
-                        <TableCell component="th" scope="row">編曲</TableCell>
+                        <TableCell component="th" scope="row">
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <EditIcon sx={{ mr: 1, fontSize: 'small' }} />
+                            編曲
+                          </Box>
+                        </TableCell>
                         <TableCell>{song.info.arranger || '-'}</TableCell>
                       </TableRow>
                       <TableRow>

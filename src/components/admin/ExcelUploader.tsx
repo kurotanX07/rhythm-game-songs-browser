@@ -26,20 +26,20 @@ const ExcelUploader: React.FC = () => {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // 有効な楽曲数を取得 (1曲分少なくする)
+  // Get valid song count (no longer subtracting 1)
   const validSongCount = songs && Array.isArray(songs) ? 
-  Math.max(0, songs.filter(song => song && song.name && song.name.trim() !== '').length - 1) : 0;
+    Math.max(0, songs.filter(song => song && song.name && song.name.trim() !== '').length) : 0;
   
-  // ゲーム選択ハンドラ
+  // Game selection handler
   const handleGameChange = (event: React.ChangeEvent<{ value: unknown }>) => {
     setSelectedGameId(event.target.value as string);
-    // ゲームを変更したら、ステップとファイル選択をリセット
+    // Reset step and file selection when game is changed
     setActiveStep(0);
     setFile(null);
     setSuccess(null);
   };
   
-  // ファイル選択ハンドラ
+  // File selection handler
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
       setFile(event.target.files[0]);
@@ -47,14 +47,14 @@ const ExcelUploader: React.FC = () => {
     }
   };
   
-  // ファイル選択ボタンのクリックハンドラ
+  // File selection button click handler
   const handleSelectFileClick = () => {
     fileInputRef.current?.click();
   };
   
   const [reanalyzeStructure, setReanalyzeStructure] = useState<boolean>(false);
 
-  // ファイル解析ハンドラ
+  // File analysis handler
   const handleParseFile = async () => {
     if (!file || !selectedGameId) return;
     
@@ -74,17 +74,16 @@ const ExcelUploader: React.FC = () => {
     }
   };
   
-  // アップロードハンドラ
+  // Upload handler
   const handleUpload = async () => {
     if (!file || !selectedGameId || validSongCount === 0) return;
     
     try {
-      // 空でない有効な楽曲のみをフィルタリング (最後の1つを除外)
+      // Filter only valid songs with non-empty names
       const validSongs = songs
-        .filter(song => song && song.name && song.name.trim() !== '')
-        .slice(0, -1); // 最後の1つを除外
+        .filter(song => song && song.name && song.name.trim() !== '');
       
-      // 楽曲データをアップロード (フィルタリングされた曲のみ)
+      // Upload song data (filtered songs only)
       await uploadSongs(selectedGameId, validSongs, file);
       
       // Check for errors from the upload process
@@ -96,11 +95,11 @@ const ExcelUploader: React.FC = () => {
       } else {
         // Full success
         setSuccess(`${validSongCount}曲のデータをアップロードしました`);
-        // 最終ステップへ
+        // Move to final step
         setActiveStep(3);
       }
       
-      // データを更新
+      // Refresh data
       await refreshData();
     } catch (err: any) {
       console.error('アップロードエラー:', err);

@@ -1,3 +1,4 @@
+// src/services/excelParser.ts
 import * as XLSX from 'xlsx';
 import { Song, DifficultyLevel, DifficultyInfo, SongInfo } from '../types/Song';
 import { ExcelStructure, ColumnMapping } from '../types/ExcelStructure';
@@ -592,12 +593,16 @@ export async function analyzeExcelStructure(
           cellNF: true
         });
         
+        // シート情報をログ出力
+        console.log("利用可能なシート名:", workbook.SheetNames);
+        
         // シート名を決定（指定がなければ最初のシート）
         const sheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[sheetName];
         
         // シートの範囲を取得
         const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+        console.log("シート範囲:", range);
         
         // firstRowOnlyがtrueの場合、最初の行をヘッダー行として使用
         let headerRow = 0;
@@ -628,6 +633,8 @@ export async function analyzeExcelStructure(
           // セルが存在し、値がある場合のみ追加
           headers.push(cell && cell.v ? String(cell.v).trim() : '');
         }
+        
+        console.log("検出されたヘッダー:", headers);
         
         // データ開始行を検出（ヘッダー行の次の空でない行）
         // firstRowOnlyの場合はヘッダー行の次の行を使用
@@ -665,18 +672,16 @@ export async function analyzeExcelStructure(
           }
         }
         
-        // デバッグ情報の表示
-        console.log('Excel Analysis Debug:');
-        console.log('Sheet Name:', sheetName);
-        console.log('Headers found:', headers);
-        console.log('Header Row:', headerRow + 1); // 1-based for user readability
-        console.log('Data Start Row:', dataStartRow + 1); // 1-based for user readability
+        // デバッグ情報出力
+        console.log("ゲーム難易度設定:", game.difficulties);
+        console.log("ヘッダー行:", headerRow + 1); // ユーザー可読性向上のため1から始まる番号
+        console.log("データ開始行:", dataStartRow + 1); // 同上
         
         // 列のマッピングを推測（ゲーム定義の難易度を使用）
-        const columnMapping = improvedColumnMapping(headers, game);
+        const columnMapping = gameBasedColumnMapping(headers, game);
         
-        // マッピング結果をデバッグ表示
-        console.log('Column Mapping:', columnMapping);
+        // 列マッピング結果を出力
+        console.log("列マッピング結果:", columnMapping);
         
         // 最初の数行のデータをサンプルとして読み取り（検証用）
         if (!firstRowOnly) {
@@ -691,7 +696,7 @@ export async function analyzeExcelStructure(
             sampleRows.push(sampleRow);
           }
           
-          console.log('Sample Data Rows:', sampleRows);
+          console.log('サンプルデータ行:', sampleRows);
         }
         
         resolve({
@@ -702,7 +707,7 @@ export async function analyzeExcelStructure(
           columnMapping
         });
       } catch (error) {
-        console.error('Excel analysis error:', error);
+        console.error('Excel解析エラー:', error);
         reject(error);
       }
     };
@@ -716,9 +721,10 @@ export async function analyzeExcelStructure(
 }
 
 /**
- * 改良版: ヘッダー行から列のマッピングを推測する - ゲーム定義の難易度を使用
+ * 完全にゲーム定義に基づいた列マッピング
+ * これは完全に各ゲームの難易度定義に基づいて動作する改良版
  */
-function improvedColumnMapping(headers: string[], game: Game): ColumnMapping {
+function gameBasedColumnMapping(headers: string[], game: Game): ColumnMapping {
   const mapping: ColumnMapping = {
     songNo: -1,
     name: -1,
@@ -734,101 +740,146 @@ function improvedColumnMapping(headers: string[], game: Game): ColumnMapping {
   // デバッグ出力 - 実際のヘッダーとその位置
   normalizedHeaders.forEach((header, index) => {
     if (header) { // 空でない場合のみ表示
-      console.log(`Column ${index+1}: "${header}" (Original: "${headers[index]}")`);
+      console.log(`カラム ${index+1}: "${header}" (元の値: "${headers[index]}")`);
     }
   });
   
-  // 基本情報の検索 - より多くのキーワードでマッチング
-  mapping.songNo = findColumnIndex(normalizedHeaders, [
-    'no', 'no.', 'song no', 'song no.', '楽曲no', '楽曲no.', '曲no', '曲no.',
-    '番号', 'ナンバー', 'id', 'track', 'track no', '曲番号', '曲id'
-  ]);
+  // 基本情報のキーワード
+  const baseFieldKeywords = {
+    songNo: ['no', 'no.', 'song no', 'song no.', '楽曲no', '楽曲no.', '曲no', '曲no.',
+             '番号', 'ナンバー', 'id', 'track', 'track no', '曲番号', '曲id'],
+    implementationNo: ['implementation no', 'implementation no.', '実装no', '実装no.', 'impl no', 'impl no.',
+                      '実装日', '実装順', '実装番号', 'release no', 'release number', 'リリース', 'release'],
+    name: ['name', 'song name', 'title', 'song title', '楽曲名', '曲名', 'タイトル',
+           '名前', '名称', 'track name', '楽曲', '曲']
+  };
   
-  mapping.implementationNo = findColumnIndex(normalizedHeaders, [
-    'implementation no', 'implementation no.', '実装no', '実装no.', 'impl no', 'impl no.',
-    '実装日', '実装順', '実装番号', 'release no', 'release number'
-  ]);
+  // 基本情報の検出
+  for (const [field, keywords] of Object.entries(baseFieldKeywords)) {
+    const index = findColumnIndex(normalizedHeaders, keywords);
+    if (field === 'songNo') mapping.songNo = index;
+    else if (field === 'implementationNo') mapping.implementationNo = index;
+    else if (field === 'name') mapping.name = index;
+  }
   
-  mapping.name = findColumnIndex(normalizedHeaders, [
-    'name', 'song name', 'title', 'song title', '楽曲名', '曲名', 'タイトル',
-    '名前', '名称', 'track name', '楽曲'
-  ]);
-  
-  // ゲーム定義の難易度を使用して検索キーワードを作成
-  const difficultyKeywords: Record<string, string[]> = {};
-  
-  // ゲームの各難易度に対するキーワードを動的に構築
+  // 各難易度の検出用キーワードを動的に生成
   game.difficulties.forEach(diff => {
     const diffId = diff.id;
     const diffName = diff.name;
+    const lowerDiffId = diffId.toLowerCase();
+    const lowerDiffName = diffName.toLowerCase();
     
-    // 基本キーワード
-    const baseKeywords = [
-      diffId.toLowerCase(),
-      diffName.toLowerCase(),
-      `${diffId.toLowerCase()} level`,
-      `${diffName.toLowerCase()} level`,
-      `${diffId.toLowerCase()}難易度`,
-      `${diffName.toLowerCase()}難易度`
-    ];
+    // 難易度名のバリエーションを生成
+    let variants = [lowerDiffId, lowerDiffName];
     
-    // 追加のキーワードを難易度IDに基づいて追加
-    if (diffId === 'EASY' || diffName.toLowerCase().includes('easy')) {
-      baseKeywords.push(...['かんたん', '簡単', 'e', 'イージー']);
-    } else if (diffId === 'NORMAL' || diffName.toLowerCase().includes('normal')) {
-      baseKeywords.push(...['ふつう', '普通', 'n', 'ノーマル']);
-    } else if (diffId === 'HARD' || diffName.toLowerCase().includes('hard')) {
-      baseKeywords.push(...['むずかしい', '難しい', 'h', 'ハード']);
-    } else if (diffId === 'EXPERT' || diffName.toLowerCase().includes('expert')) {
-      baseKeywords.push(...['おに', '鬼', 'エキスパート', 'ex', 'exp']);
-    } else if (diffId === 'MASTER' || diffName.toLowerCase().includes('master')) {
-      baseKeywords.push(...['マスター', 'm', 'mas']);
-    } else if (diffId === 'APPEND' || diffName.toLowerCase().includes('append') ||
-               diffId === 'SPECIAL' || diffName.toLowerCase().includes('special')) {
-      baseKeywords.push(...['アペンド', 'sp', 'a', '拡張', 'スペシャル']);
+    // 日本語の一般的な難易度表現を追加 - 既にゲーム定義にある場合はスキップ
+    const commonJapaneseNames: { [key: string]: string[] } = {
+      'easy': ['かんたん', '簡単', 'イージー'],
+      'normal': ['ふつう', '普通', 'ノーマル'],
+      'hard': ['むずかしい', '難しい', 'ハード'],
+      'expert': ['おに', '鬼', 'エキスパート', 'エクスパート'],
+      'master': ['マスター', 'マスタ'],
+      'special': ['スペシャル', 'スペシャル', '特殊', '特別']
+    };
+    
+    // 難易度名の小文字版をキーとしてチェック
+    Object.entries(commonJapaneseNames).forEach(([key, values]) => {
+      if (lowerDiffId.includes(key) || lowerDiffName.includes(key)) {
+        variants = [...variants, ...values];
+      }
+    });
+    
+    // 難易度の頭文字や略称を追加
+    if (diffId.length > 1) {
+      variants.push(diffId.charAt(0).toLowerCase());
+      if (diffId.length > 2) {
+        variants.push(diffId.toLowerCase().substring(0, 2));
+        variants.push(diffId.toLowerCase().substring(0, 3));
+      }
     }
     
-    difficultyKeywords[diffId] = baseKeywords;
+    // 難易度項目ごとに対応する列を検出
+    
+    // レベル列
+    const levelKeywords = variants.flatMap(v => [
+      v,
+      `${v} level`, `${v}level`,
+      `${v} lv`, `${v}lv`,
+      `${v}レベル`, `${v} レベル`,
+      `${v}難易度`, `${v} 難易度`
+    ]);
+    
+    mapping.difficulties[diffId] = findColumnIndex(normalizedHeaders, levelKeywords);
+    
+    // コンボ数列
+    const comboKeywords = variants.flatMap(v => [
+      `${v} combo`, `${v}combo`,
+      `${v} notes`, `${v}notes`,
+      `${v}コンボ`, `${v} コンボ`,
+      `${v}ノーツ`, `${v} ノーツ`,
+      `${v}ノート`, `${v} ノート`
+    ]);
+    
+    mapping.combos[diffId] = findColumnIndex(normalizedHeaders, comboKeywords);
+    
+    // YouTube URL列
+    const youtubeKeywords = variants.flatMap(v => [
+      `${v} url`, `${v}url`,
+      `${v} youtube`, `${v}youtube`,
+      `${v} link`, `${v}link`,
+      `${v}リンク`, `${v} リンク`,
+      `${v} yt`, `${v}yt`
+    ]);
+    
+    mapping.youtubeUrls[diffId] = findColumnIndex(normalizedHeaders, youtubeKeywords);
   });
   
-  // 各ゲーム定義の難易度に対応する列マッピングを検出
-  game.difficulties.forEach(diff => {
-    const diffId = diff.id;
-    const keywords = difficultyKeywords[diffId] || [];
+  // 未検出の難易度列のフォールバック処理
+  // これはヘッダーからその他のパターンもチェックする
+  if (Object.values(mapping.difficulties).every(v => v === -1)) {
+    console.log("標準マッピングで難易度列が検出できませんでした。別の方法で検出を試みます。");
     
-    // レベル
-    mapping.difficulties[diffId] = findColumnIndex(normalizedHeaders, [
-      ...keywords,
-      ...keywords.map(k => `${k} lv`),
-      ...keywords.map(k => `${k}レベル`),
-      ...keywords.map(k => `${k} level`),
-      ...keywords.map(k => `${k}_lv`)
-    ]);
+    // よく使われる難易度パターンを検索
+    const commonPatterns = [
+      /^(easy|normal|hard|expert|master|special|append)/i,
+      /^([ehnmsx])\s*(lv|level|難易度)/i,
+      /^(簡単|普通|ふつう|難しい|むずかしい|エキスパート|マスター|スペシャル)/i
+    ];
     
-    // コンボ数
-    mapping.combos[diffId] = findColumnIndex(normalizedHeaders, [
-      ...keywords.map(k => `${k} combo`),
-      ...keywords.map(k => `${k} notes`),
-      ...keywords.map(k => `${k}コンボ`),
-      ...keywords.map(k => `${k} コンボ`),
-      ...keywords.map(k => `${k}_combo`),
-      ...keywords.map(k => `${k}ノーツ`),
-      ...keywords.map(k => `${k} ノーツ`)
-    ]);
-    
-    // YouTube URL
-    mapping.youtubeUrls[diffId] = findColumnIndex(normalizedHeaders, [
-      ...keywords.map(k => `${k} url`),
-      ...keywords.map(k => `${k} youtube`),
-      ...keywords.map(k => `${k} link`),
-      ...keywords.map(k => `${k}リンク`),
-      ...keywords.map(k => `${k} yt`),
-      ...keywords.map(k => `${k}_url`),
-      ...keywords.map(k => `${k}_yt`)
-    ]);
-  });
+    // 難易度っぽい列を探す
+    normalizedHeaders.forEach((header, index) => {
+      if (!header) return;
+      
+      // パターンにマッチするか確認
+      const matchesPattern = commonPatterns.some(pattern => pattern.test(header));
+      
+      if (matchesPattern) {
+        // この列はどの難易度に対応するか推測
+        const headerParts = header.split(/\s+|_/)[0].toUpperCase();
+        
+        // 最も近い難易度を検索
+        const matchedDifficulty = findClosestDifficulty(headerParts, game.difficulties);
+        
+        if (matchedDifficulty && mapping.difficulties[matchedDifficulty.id] === -1) {
+          mapping.difficulties[matchedDifficulty.id] = index;
+          console.log(`難易度列を自動検出: "${header}" を ${matchedDifficulty.id} として検出`);
+          
+          // コンボ列も近くにあるか確認
+          for (let i = index + 1; i < Math.min(index + 3, normalizedHeaders.length); i++) {
+            const nextHeader = normalizedHeaders[i];
+            if (nextHeader && (nextHeader.includes('combo') || nextHeader.includes('notes') || 
+                nextHeader.includes('コンボ') || nextHeader.includes('ノーツ'))) {
+              mapping.combos[matchedDifficulty.id] = i;
+              console.log(`コンボ列を自動検出: "${normalizedHeaders[i]}" を ${matchedDifficulty.id}のコンボ列として検出`);
+              break;
+            }
+          }
+        }
+      }
+    });
+  }
   
-  // 楽曲情報のキーワードを拡張 - 型安全なオブジェクト形式に変更
+  // 楽曲情報のキーワード
   interface InfoFieldsMap {
     artist: string[];
     lyricist: string[];
@@ -860,7 +911,66 @@ function improvedColumnMapping(headers: string[], game: Game): ColumnMapping {
 }
 
 /**
- * 改良版: ヘッダー配列から指定したキーワードに一致する列のインデックスを検索
+ * ヘッダーの難易度名に最も近いゲーム難易度を見つける
+ * 完全一致や部分一致を考慮する
+ */
+function findClosestDifficulty(headerPart: string, difficulties: Game['difficulties']): { id: string, name: string } | null {
+  // 完全一致を試行
+  for (const diff of difficulties) {
+    if (diff.id.toUpperCase() === headerPart || diff.name.toUpperCase() === headerPart) {
+      return { id: diff.id, name: diff.name };
+    }
+  }
+  
+  // 部分一致を試行
+  for (const diff of difficulties) {
+    const upperDiffId = diff.id.toUpperCase();
+    const upperDiffName = diff.name.toUpperCase();
+    
+    if (upperDiffId.includes(headerPart) || headerPart.includes(upperDiffId) || 
+        upperDiffName.includes(headerPart) || headerPart.includes(upperDiffName)) {
+      return { id: diff.id, name: diff.name };
+    }
+  }
+  
+  // 頭文字での一致を試行
+  if (headerPart.length === 1) {
+    for (const diff of difficulties) {
+      if (diff.id.charAt(0).toUpperCase() === headerPart || 
+          diff.name.charAt(0).toUpperCase() === headerPart) {
+        return { id: diff.id, name: diff.name };
+      }
+    }
+  }
+  
+  // 一般的な略称パターンでの一致を試行
+  const commonMappings: { [key: string]: string[] } = {
+    'E': ['EASY'],
+    'N': ['NORMAL'],
+    'H': ['HARD'],
+    'EX': ['EXPERT', 'EXP'],
+    'M': ['MASTER'],
+    'SP': ['SPECIAL'],
+    'A': ['APPEND']
+  };
+  
+  for (const [abbr, targets] of Object.entries(commonMappings)) {
+    if (headerPart === abbr || headerPart.startsWith(abbr)) {
+      for (const diff of difficulties) {
+        if (targets.some(t => diff.id.toUpperCase().includes(t) || diff.name.toUpperCase().includes(t))) {
+          return { id: diff.id, name: diff.name };
+        }
+      }
+    }
+  }
+  
+  // 未使用の難易度を探す（フォールバック）
+  // これは最後の手段として、まだマッピングされていない難易度を返す
+  return null;
+}
+
+/**
+ * ヘッダー配列から指定したキーワードに一致する列のインデックスを検索
  * 部分一致と完全一致を考慮
  */
 function findColumnIndex(headers: string[], keywords: string[]): number {
