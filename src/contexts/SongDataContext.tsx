@@ -201,15 +201,25 @@ export function SongDataProvider({ children }: SongDataProviderProps): JSX.Eleme
       // ゲーム一覧を再取得
       const fetchedGames = await getGames();
       
+      // ゲームデータをログに出力して問題を特定
+      console.log('Fetched games with level ranges:', fetchedGames.map(game => ({
+        id: game.id,
+        title: game.title,
+        minLevel: game.minLevel,
+        maxLevel: game.maxLevel
+      })));
+      
       // 修正: 必ず difficulties プロパティを持つことを確認
       const gamesWithDifficulties = fetchedGames.map(game => {
-        if (!game.difficulties || !Array.isArray(game.difficulties) || game.difficulties.length === 0) {
-          return {
-            ...game,
-            difficulties: [...DEFAULT_DIFFICULTIES]
-          };
-        }
-        return game;
+        // ここで、minLevel と maxLevel を確実に取得
+        return {
+          ...game,
+          difficulties: game.difficulties && Array.isArray(game.difficulties) && game.difficulties.length > 0
+            ? game.difficulties
+            : [...DEFAULT_DIFFICULTIES],
+          minLevel: game.minLevel !== undefined ? game.minLevel : 1,
+          maxLevel: game.maxLevel !== undefined ? game.maxLevel : 37
+        };
       });
       
       setGames(gamesWithDifficulties);

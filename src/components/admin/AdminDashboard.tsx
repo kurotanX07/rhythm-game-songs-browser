@@ -2,17 +2,20 @@ import React, { useState, useEffect } from 'react';
 import {
   Box, Typography, Grid, Card, CardContent, Paper, Divider,
   List, ListItem, ListItemIcon, ListItemText, Chip, CircularProgress,
-  Button, Alert
+  Button, Alert, Dialog, DialogTitle, DialogContent, DialogActions, IconButton
 } from '@mui/material';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import SportsEsportsIcon from '@mui/icons-material/SportsEsports';
 import UpdateIcon from '@mui/icons-material/Update';
 import PeopleIcon from '@mui/icons-material/People';
+import MoreHorizIcon from '@mui/icons-material/MoreHoriz';
+import CloseIcon from '@mui/icons-material/Close';
 import { useSongData } from '../../contexts/SongDataContext';
 import { useAuth } from '../../contexts/AuthContext';
 import { collection, query, where, getDocs, orderBy, limit } from 'firebase/firestore';
 import { db } from '../../services/firebase';
 import { updateGameSongCount } from '../../services/songService';
+import { getUpdateHistory, getAllUpdateHistory } from '../../services/updateService';
 
 const AdminDashboard: React.FC = () => {
   const { games, songs, refreshDataAdmin } = useSongData();
@@ -24,8 +27,13 @@ const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState({
     totalGames: 0,
     totalSongs: 0,
-    recentUpdates: [] as { title: string, date: Date }[]
+    recentUpdates: [] as { id?: string, title: string, description: string, date: Date }[]
   });
+  
+  // 履歴ダイアログの状態管理
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [allUpdates, setAllUpdates] = useState<{ id?: string, title: string, description: string, date: Date }[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   useEffect(() => {
     const fetchStats = async () => {
@@ -49,14 +57,13 @@ const AdminDashboard: React.FC = () => {
           // If the game's songCount doesn't match the actual count, update it
           if (game.songCount !== actualSongCount) {
             console.warn(`Game ${game.id} has songCount=${game.songCount} but actually has ${actualSongCount} songs`);
-            // We're not automatically updating here - user can use the refresh button
           }
           
           songCount += actualSongCount;
         }
         
-        // Get recent updates
-        const recentUpdates: { title: string, date: Date }[] = [];
+        // Get recent updates - 更新履歴の取得（最新5件のみ）
+        const recentUpdates = await getUpdateHistory(5);
         
         // Set stats
         setStats({
@@ -74,6 +81,30 @@ const AdminDashboard: React.FC = () => {
 
     fetchStats();
   }, [games, songs]);
+
+  // 全履歴データを取得する
+  const fetchAllHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const updates = await getAllUpdateHistory();
+      setAllUpdates(updates);
+    } catch (error) {
+      console.error('履歴データの取得に失敗しました:', error);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  // 履歴ダイアログを開く
+  const handleOpenHistoryDialog = () => {
+    setHistoryDialogOpen(true);
+    fetchAllHistory();
+  };
+
+  // 履歴ダイアログを閉じる
+  const handleCloseHistoryDialog = () => {
+    setHistoryDialogOpen(false);
+  };
 
   // Function to refresh song counts manually
   const refreshSongCounts = async () => {
@@ -248,7 +279,7 @@ const AdminDashboard: React.FC = () => {
                     </ListItemIcon>
                     <ListItemText
                       primary={game.title}
-                      secondary={`楽曲数: ${game.songCount}曲 / レベル範囲: ${game.minLevel || 1}-${game.maxLevel || 15}`}
+                      secondary={`楽曲数: ${game.songCount}曲 / レベル範囲: ${game.minLevel || 1}-${game.maxLevel || 37}`}
                     />
                     <Chip label={`ID: ${game.id}`} size="small" variant="outlined" />
                   </ListItem>
@@ -260,9 +291,19 @@ const AdminDashboard: React.FC = () => {
         
         <Grid item xs={12} md={6}>
           <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-              最近の更新
-            </Typography>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+              <Typography variant="h6" gutterBottom>
+                最近の更新
+              </Typography>
+              <Button 
+                size="small" 
+                color="primary"
+                onClick={handleOpenHistoryDialog}
+                startIcon={<MoreHorizIcon />}
+              >
+                すべて表示
+              </Button>
+            </Box>
             <Divider sx={{ mb: 2 }} />
             {stats.recentUpdates.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
@@ -271,7 +312,7 @@ const AdminDashboard: React.FC = () => {
             ) : (
               <List>
                 {stats.recentUpdates.map((update, index) => (
-                  <ListItem key={index}>
+                  <ListItem key={update.id || index}>
                     <ListItemIcon>
                       <UpdateIcon />
                     </ListItemIcon>
@@ -286,6 +327,78 @@ const AdminDashboard: React.FC = () => {
           </Paper>
         </Grid>
       </Grid>
+      
+      {/* 履歴詳細ダイアログ */}
+      <Dialog 
+        open={historyDialogOpen} 
+        onClose={handleCloseHistoryDialog}
+        fullWidth
+        maxWidth="md"
+      >
+        <DialogTitle>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            更新履歴一覧
+            <IconButton onClick={handleCloseHistoryDialog}>
+              <CloseIcon />
+            </IconButton>
+          </Box>
+        </DialogTitle>
+        <DialogContent dividers>
+          {loadingHistory ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+              <CircularProgress />
+            </Box>
+          ) : allUpdates.length === 0 ? (
+            <Typography>更新履歴がありません。</Typography>
+          ) : (
+            <List>
+              {allUpdates.map((update, index) => (
+                <React.Fragment key={update.id || index}>
+                  <ListItem alignItems="flex-start">
+                    <ListItemIcon>
+                      <UpdateIcon />
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={
+                        <Typography variant="subtitle1" component="span">
+                          {update.title}
+                        </Typography>
+                      }
+                      secondary={
+                        <React.Fragment>
+                          <Typography
+                            component="span"
+                            variant="body2"
+                            color="text.primary"
+                          >
+                            {update.date.toLocaleString()}
+                          </Typography>
+                          {update.description && (
+                            <Typography
+                              component="p"
+                              variant="body2"
+                              color="text.secondary"
+                              sx={{ mt: 0.5 }}
+                            >
+                              {update.description}
+                            </Typography>
+                          )}
+                        </React.Fragment>
+                      }
+                    />
+                  </ListItem>
+                  {index < allUpdates.length - 1 && <Divider variant="inset" component="li" />}
+                </React.Fragment>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseHistoryDialog} color="primary">
+            閉じる
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 };

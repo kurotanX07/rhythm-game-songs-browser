@@ -35,8 +35,8 @@ interface ColumnVisibility {
   addedDate: boolean;
 }
 
-// Display density settings
-type DisplayDensity = 'compact' | 'comfortable' | 'spacious';
+// Display density settings - 「さらに広め」の選択肢を追加
+type DisplayDensity = 'compact' | 'comfortable' | 'spacious' | 'very-spacious';
 
 const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
   const navigate = useNavigate();
@@ -51,9 +51,9 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
   const [sortIsCombo, setSortIsCombo] = useState<boolean>(false);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
-  // 最も詰めた表示をデフォルトに設定
-  const [density, setDensity] = useState<DisplayDensity>('compact');
-  const [fontSize, setFontSize] = useState<number>(10); // デフォルトのフォントサイズ
+  // 広めの表示をデフォルトに設定
+  const [density, setDensity] = useState<DisplayDensity>('spacious');
+  const [fontSize, setFontSize] = useState<number>(12); // デフォルトのフォントサイズを大きめに設定
   
   // Column visibility state
   const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
@@ -75,14 +75,14 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
     return [...game.difficulties].sort((a, b) => a.order - b.order);
   }, [game]);
   
-  // Computed density style settings - 縦方向を極限まで詰める
+  // Computed density style settings - より広い表示を追加
   const densityStyles = useMemo(() => {
     switch (density) {
       case 'compact':
         return {
-          padding: '1px 2px', // 最小限のパディング
+          padding: '1px 2px',
           fontSize: `${fontSize}px`,
-          lineHeight: '1'  // 最も詰めた行の高さ
+          lineHeight: '1'
         };
       case 'comfortable':
         return {
@@ -95,6 +95,12 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
           padding: '4px 6px',
           fontSize: `${fontSize + 2}px`,
           lineHeight: '1.2'
+        };
+      case 'very-spacious':
+        return {
+          padding: '6px 8px',
+          fontSize: `${fontSize + 3}px`,
+          lineHeight: '1.4'
         };
     }
   }, [density, fontSize]);
@@ -426,6 +432,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
               <MenuItem value="compact">コンパクト</MenuItem>
               <MenuItem value="comfortable">標準</MenuItem>
               <MenuItem value="spacious">広め</MenuItem>
+              <MenuItem value="very-spacious">さらに広め</MenuItem>
             </Select>
           </FormControl>
         </Box>
@@ -609,12 +616,14 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   sx={{ 
                     ...densityStyles,
                     padding: '1px 1px',
-                    width: '35px',
-                    minWidth: '35px',
-                    maxWidth: '35px'
+                    // 難易度セルの幅を広げる
+                    width: '60px',
+                    minWidth: '60px',
+                    maxWidth: '60px'
                   }}
                 >
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    {/* 難易度タイトル */}
                     <Box 
                       sx={{ 
                         display: 'flex', 
@@ -634,18 +643,6 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                       </Typography>
                       {renderSortIcon('', diff.id, false)}
                     </Box>
-                    <Typography 
-                      variant="caption" 
-                      sx={{ 
-                        color: 'text.secondary',
-                        cursor: 'pointer',
-                        '&:hover': { textDecoration: 'underline' },
-                        fontSize: `${Number(densityStyles.fontSize.replace('px', '')) - 2}px`,
-                      }}
-                      onClick={() => handleDifficultySort(diff.id, true)}
-                    >
-                      コンボ{renderSortIcon('', diff.id, true)}
-                    </Typography>
                   </Box>
                 </TableCell>
               ))}
@@ -762,51 +759,67 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                       }}
                     >
                       {diffInfo && diffInfo.level ? (
-                        <Stack spacing={0} alignItems="center">
-                          <Chip
-                            label={diffInfo.level}
-                            size="small"
-                            sx={{
-                              bgcolor: diff.color,
-                              color: 'white',
-                              fontWeight: 'bold',
-                              height: `${Number(densityStyles.fontSize.replace('px', '')) + 2}px`,
-                              '& .MuiChip-label': {
-                                px: 0.5,
-                                fontSize: `${Number(densityStyles.fontSize.replace('px', '')) - 1}px`
-                              }
-                            }}
-                          />
+                        <Box sx={{ 
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center', 
+                          mt: 0.5,
+                          px: 0.5
+                        }}>
+                          {/* 左側: レベルとコンボ */}
+                          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                            <Chip
+                              label={diffInfo.level}
+                              size="small"
+                              sx={{
+                                bgcolor: diff.color,
+                                color: 'white',
+                                fontWeight: 'bold',
+                                height: `${Number(densityStyles.fontSize.replace('px', '')) + 2}px`,
+                                '& .MuiChip-label': {
+                                  px: 0.5,
+                                  fontSize: `${Number(densityStyles.fontSize.replace('px', '')) - 1}px`
+                                }
+                              }}
+                            />
+                            <Typography 
+                              sx={{ 
+                                color: 'text.secondary',
+                                fontSize: `${Number(densityStyles.fontSize.replace('px', '')) - 2}px`,
+                                lineHeight: 1,
+                                mt: 0.25,
+                                cursor: 'pointer',
+                                '&:hover': { textDecoration: 'underline' }
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleDifficultySort(diff.id, true);
+                              }}
+                            >
+                              {diffInfo.combo || '-'}
+                            </Typography>
+                          </Box>
                           
-                          {/* Combo display */}
-                          <Typography 
-                            sx={{ 
-                              color: 'text.secondary',
-                              fontSize: `${Number(densityStyles.fontSize.replace('px', '')) - 2}px`,
-                              lineHeight: 1
-                            }}
-                          >
-                            {diffInfo.combo || '-'}
-                          </Typography>
-                          
+                          {/* 右側: YouTubeボタン */}
                           {diffInfo.youtubeUrl && (
                             <IconButton
                               size="small"
                               color="error"
                               onClick={(e) => handleYouTubeClick(e, diffInfo.youtubeUrl)}
                               sx={{ 
-                                p: 0,
+                                p: 0.5, // パディングを追加して押しやすく
+                                ml: 0.5,
                                 '& .MuiSvgIcon-root': {
-                                  fontSize: `${Number(densityStyles.fontSize.replace('px', '')) + 1}px`
+                                  fontSize: `${Number(densityStyles.fontSize.replace('px', '')) + 4}px` // アイコンサイズを大きく
                                 }
                               }}
                             >
-                              <YouTubeIcon fontSize="small" />
+                              <YouTubeIcon />
                             </IconButton>
                           )}
-                        </Stack>
+                        </Box>
                       ) : (
-                        '-'
+                        <Typography sx={{ ...densityStyles }}>-</Typography>
                       )}
                     </TableCell>
                   );

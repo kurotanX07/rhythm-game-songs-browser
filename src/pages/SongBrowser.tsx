@@ -1,8 +1,8 @@
-// src/pages/SongBrowser.tsx の修正版
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-  Container, Typography, Box, CircularProgress, Alert
+  Container, Typography, Box, CircularProgress, Alert,
+  Paper, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent
 } from '@mui/material';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
@@ -89,6 +89,25 @@ const SongBrowser: React.FC = () => {
     setFilters(newFilters);
   };
   
+  // より効率的なゲームセレクター（コンパクト化）
+  const CompactGameSelector = () => (
+    <FormControl size="small" sx={{ minWidth: 200, mb: 1 }}>
+      <InputLabel id="compact-game-select-label">ゲームタイトル</InputLabel>
+      <Select
+        labelId="compact-game-select-label"
+        value={selectedGameId || ''}
+        label="ゲームタイトル"
+        onChange={(e: SelectChangeEvent<string>) => handleGameSelect(e.target.value)}
+      >
+        {games.map((game) => (
+          <MenuItem key={game.id} value={game.id}>
+            {game.title}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
+  
   return (
     <>
       <SEO 
@@ -98,21 +117,19 @@ const SongBrowser: React.FC = () => {
       <Header />
       <ResponsiveLayout>
         <Container maxWidth="lg">
-          <Typography variant="h4" component="h1" gutterBottom>
-            楽曲一覧
-          </Typography>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="h5" component="h1">
+              楽曲一覧
+            </Typography>
+            
+            <CompactGameSelector />
+          </Box>
           
           {error && (
             <Alert severity="error" sx={{ my: 2 }}>
               {error}
             </Alert>
           )}
-          
-          <GameSelector 
-            games={games}
-            selectedGameId={selectedGameId}
-            onGameSelect={handleGameSelect}
-          />
           
           {loading ? (
             <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>

@@ -327,7 +327,7 @@ export function useExcelParser() {
   /**
    * 楽曲データをアップロードする
    */
-  const uploadSongs = async (gameId: string, songData: Song[], file: File): Promise<void> => {
+  const uploadSongs = async (gameId: string, songData: Song[], file?: File): Promise<void> => {
     try {
       setLoading(true);
       setError(null);
@@ -344,10 +344,7 @@ export function useExcelParser() {
         message: 'アップロードを準備中...'
       });
       
-      // Step 1: Validate the file
-      if (file.size > 50 * 1024 * 1024) { // 50MB limit
-        throw new Error('Excelファイルが大きすぎます (50MB以上)。小さいファイルに分割するか、不要なデータを削除してください。');
-      }
+      // Skip file validation since we're making it optional
       
       // 空の行や無効なデータを除外（念のための二重チェック）
       const validSongs = songData.filter(song => {
@@ -423,10 +420,11 @@ export function useExcelParser() {
       console.log(`Updating game's songCount to ${validCount}...`);
       await updateGameSongCount(gameId, validCount);
       
-      // Step 5: Upload the Excel file to Storage
+      // Step 5: SKIP Excel file upload - mark as complete immediately
       updateProgress({
-        message: 'Excelファイルをストレージにアップロード中...',
-        fileProgress: 0,
+        phase: 'complete',
+        fileProgress: 100, // Mark as done
+        message: `${validCount}曲のデータのアップロードが完了しました！`,
         songsProgress: {
           current: validCount,
           total: validCount,
@@ -434,45 +432,6 @@ export function useExcelParser() {
         }
       });
       
-      console.log('Starting Excel file upload to Storage...');
-      
-      try {
-        // File upload progress callback with improved error handling
-        const uploadProgressCallback = (progress: number) => {
-          console.log(`Excel upload progress callback: ${progress.toFixed(1)}%`);
-          updateProgress({
-            fileProgress: progress,
-            message: `Excelファイルをアップロード中... (${progress.toFixed(1)}%)`,
-          });
-        };
-        
-        const downloadUrl = await uploadExcelFile(gameId, file, uploadProgressCallback);
-        
-        if (!downloadUrl) {
-          console.warn('Excel file upload to Storage failed, but song data was saved to Firestore');
-          setError('楽曲データは保存されましたが、Excelファイルのアップロードに問題がありました。ネットワーク接続を確認して、再度お試しください。');
-          updateProgress({
-            phase: 'complete',
-            message: '楽曲データの保存は完了しましたが、Excelファイルのアップロードに問題がありました。',
-            fileProgress: 0
-          });
-        } else {
-          console.log('Excel file uploaded successfully with URL:', downloadUrl);
-          updateProgress({
-            phase: 'complete',
-            fileProgress: 100,
-            message: `${validCount}曲のデータのアップロードが完了しました！`,
-          });
-        }
-      } catch (uploadError: any) {
-        console.error('Excel file upload error:', uploadError);
-        setError(`楽曲データは保存されましたが、Excelファイルのアップロードに失敗しました: ${uploadError.message}`);
-        updateProgress({
-          phase: 'complete',
-          message: '楽曲データの保存は完了しましたが、Excelファイルのアップロードに失敗しました。',
-          fileProgress: 0
-        });
-      }
     } catch (err: any) {
       console.error('楽曲アップロードエラー:', err);
       setError(err.message || '楽曲データのアップロードに失敗しました');

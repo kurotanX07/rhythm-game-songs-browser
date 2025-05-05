@@ -20,6 +20,7 @@ import { useSongData } from '../../contexts/SongDataContext';
 import { useExcelParser } from '../../hooks/useExcelParser';
 import { ExcelStructure, ColumnMapping } from '../../types/ExcelStructure';
 import * as XLSX from 'xlsx';
+import { recordUpdate } from '../../services/updateService';
 
 const GAMES_COLLECTION = 'games';
 
@@ -313,8 +314,9 @@ const GameTitleManager: React.FC = () => {
         lastUpdated: serverTimestamp()
       };
       
-      // デバッグ用にコンソールに表示
+      // デバッグ出力を追加
       console.log('Saving game with data:', firestoreData);
+      console.log('Game level range:', gameMinLevel, '-', gameMaxLevel);
       
       if (isEditing && currentGame) {
         // 既存ゲームの更新
@@ -325,11 +327,24 @@ const GameTitleManager: React.FC = () => {
         await setDoc(doc(db, GAMES_COLLECTION, customId), firestoreData);
         setSuccess('新しいゲームを追加しました');
       }
-
+  
       // Excelファイルが選択され、解析が完了していれば構造情報も保存
       if (excelFile && excelStructure) {
         await saveStructure(excelStructure);
         setSuccess(prev => prev + ' / Excelファイル構造も保存しました');
+      }
+      
+      // 更新履歴を記録
+      try {
+        await recordUpdate(
+          isEditing ? `ゲーム「${title.trim()}」を更新` : `新しいゲーム「${title.trim()}」を追加`,
+          `ゲームID: ${isEditing ? currentGame?.id : customId}, レベル範囲: ${gameMinLevel}-${gameMaxLevel}`,
+          'admin', // 実際のユーザーIDを使用する場合はここを変更
+          isEditing ? currentGame?.id : customId
+        );
+      } catch (updateError) {
+        console.error('更新履歴の記録に失敗しました:', updateError);
+        // 更新履歴のエラーはメイン処理に影響させない
       }
       
       // ダイアログを閉じる

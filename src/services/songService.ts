@@ -10,6 +10,7 @@ import { Game } from '../types/Game';
 import { ExcelStructure } from '../types/ExcelStructure';
 import { UpdateStatus } from '../types/UpdateStatus';
 import { DEFAULT_DIFFICULTIES } from '../contexts/SongDataContext';
+import { recordUpdate } from './updateService';
 
 // コレクション名の定義
 const GAMES_COLLECTION = 'games';
@@ -21,12 +22,23 @@ const UPDATE_STATUS_COLLECTION = 'updateStatus';
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 /**
- * ゲーム一覧を取得する
+ * ゲーム一覧を取得する - レベル範囲を確実に含める
  */
 export async function getGames(): Promise<Game[]> {
   const gamesSnapshot = await getDocs(collection(db, GAMES_COLLECTION));
   return gamesSnapshot.docs.map(doc => {
     const data = doc.data();
+    
+    // レベル範囲や難易度などの取得状況をログ出力
+    console.log(`Game ${doc.id} data:`, {
+      hasMinLevel: 'minLevel' in data,
+      minLevel: data.minLevel,
+      hasMaxLevel: 'maxLevel' in data,
+      maxLevel: data.maxLevel,
+      hasDifficulties: 'difficulties' in data && Array.isArray(data.difficulties),
+      diffCount: data.difficulties?.length
+    });
+    
     return {
       id: doc.id,
       title: data.title,
@@ -34,6 +46,9 @@ export async function getGames(): Promise<Game[]> {
       imageUrl: data.imageUrl,
       songCount: data.songCount,
       lastUpdated: data.lastUpdated?.toDate() || new Date(),
+      // 明示的に minLevel と maxLevel を処理
+      minLevel: data.minLevel !== undefined ? data.minLevel : 1,
+      maxLevel: data.maxLevel !== undefined ? data.maxLevel : 37,
       difficulties: data.difficulties || [...DEFAULT_DIFFICULTIES],
       excelMapping: data.excelMapping || undefined // Excel構造のマッピング情報を追加
     };
@@ -59,6 +74,8 @@ export async function getGame(gameId: string): Promise<Game | null> {
     songCount: data.songCount,
     lastUpdated: data.lastUpdated?.toDate() || new Date(),
     difficulties: data.difficulties || [...DEFAULT_DIFFICULTIES],
+    minLevel: data.minLevel !== undefined ? data.minLevel : 1,
+    maxLevel: data.maxLevel !== undefined ? data.maxLevel : 37,
     excelMapping: data.excelMapping || undefined // Excel構造のマッピング情報を追加
   };
 }
@@ -73,6 +90,8 @@ export async function saveGame(game: Game): Promise<void> {
     imageUrl: game.imageUrl || null,
     songCount: game.songCount,
     difficulties: game.difficulties,
+    minLevel: game.minLevel || 1,
+    maxLevel: game.maxLevel || 37,
     excelMapping: game.excelMapping || null, // Excel構造のマッピング情報を保存
     lastUpdated: serverTimestamp()
   });
@@ -212,7 +231,7 @@ export function formatDateString(date: Date | null): string | null {
 }
 
 /**
- * 楽曲一覧を保存する
+ * 楽曲一覧を保存する - 履歴記録機能を削除
  */
 export async function saveSongs(songs: Song[]): Promise<void> {
   const batch = writeBatch(db);
@@ -270,6 +289,8 @@ export async function saveSongs(songs: Song[]): Promise<void> {
   });
   
   await batch.commit();
+  
+  // 楽曲データアップロードの更新履歴記録部分を削除
 }
 
 /**
@@ -388,7 +409,6 @@ export function normalizeSongForUpload(song: Song): DocumentData {
 
 /**
  * ゲームの楽曲数を更新する
- * Improved version that updates the count based on actual songs in database
  */
 export async function updateGameSongCount(gameId: string, songCount?: number): Promise<void> {
   const gameRef = doc(db, GAMES_COLLECTION, gameId);
@@ -418,4 +438,17 @@ export async function updateGameSongCount(gameId: string, songCount?: number): P
     songCount: songCount,
     lastUpdated: serverTimestamp()
   });
+  
+  // 楽曲数の更新は記録する
+  try {
+    await recordUpdate(
+      `ゲーム「${gameDoc.data().title}」の楽曲数を更新`,
+      `ゲームID: ${gameId} の楽曲数を ${songCount} に更新しました`,
+      'system', // 自動更新のユーザーID
+      gameId
+    );
+  } catch (error) {
+    console.error('更新履歴の記録に失敗しました:', error);
+    // 更新履歴の記録失敗はメインの処理に影響を与えないようにエラーはスローしない
+  }
 }

@@ -28,7 +28,7 @@ const ExcelUploader: React.FC = () => {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // Get valid song count (no longer subtracting 1)
+  // Get valid song count
   const validSongCount = songs && Array.isArray(songs) ? 
     Math.max(0, songs.filter(song => song && song.name && song.name.trim() !== '').length) : 0;
   
@@ -76,24 +76,24 @@ const ExcelUploader: React.FC = () => {
     }
   };
   
-  // Upload handler
+  // Upload handler - modified to pass file as optional
   const handleUpload = async () => {
-    if (!file || !selectedGameId || validSongCount === 0) return;
+    if (!selectedGameId || validSongCount === 0) return;
     
     try {
       // Filter only valid songs with non-empty names
       const validSongs = songs
         .filter(song => song && song.name && song.name.trim() !== '');
       
-      // Upload song data (filtered songs only)
-      await uploadSongs(selectedGameId, validSongs, file);
+      // Upload song data without the file parameter
+      await uploadSongs(selectedGameId, validSongs);
       
       // Check for errors from the upload process
       if (error) {
         // Error will be displayed automatically through the error state
         // but we still advance to the next step since some data was saved
         setActiveStep(3);
-        setSuccess(`${validSongCount}曲のデータは保存されましたが、Excelファイルのアップロードに問題がありました。`);
+        setSuccess(`${validSongCount}曲のデータは保存されましたが、アップロードに問題がありました。`);
       } else {
         // Full success
         setSuccess(`${validSongCount}曲のデータをアップロードしました`);
@@ -109,13 +109,13 @@ const ExcelUploader: React.FC = () => {
     }
   };
 
-  // New function to render progress information
+  // New function to render progress information without showing file upload percentage
   const renderProgress = () => {
     if (!uploadProgress || uploadProgress.phase === 'idle') {
       return null;
     }
 
-    const { phase, fileProgress, songsProgress, message } = uploadProgress;
+    const { phase, songsProgress, message } = uploadProgress;
     
     let progressColor = 'primary';
     let icon = <CloudUploadIcon sx={{ mr: 1 }} />;
@@ -158,15 +158,11 @@ const ExcelUploader: React.FC = () => {
           <Box sx={{ mt: 2 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
               <Typography variant="body2" color="text.secondary">
-                Excelファイル
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {fileProgress.toFixed(0)}%
+                処理中...
               </Typography>
             </Box>
             <LinearProgress 
-              variant="determinate" 
-              value={fileProgress} 
+              variant="indeterminate" 
               color={progressColor as any}
               sx={{ height: 8, borderRadius: 4 }}
             />
@@ -286,7 +282,6 @@ const ExcelUploader: React.FC = () => {
               選択したExcelファイルを解析して楽曲データを取得します。
             </Typography>
             
-            {/* ここに新しいチェックボックスを追加 */}
             <FormControlLabel
               control={
                 <Checkbox
