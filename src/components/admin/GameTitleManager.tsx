@@ -25,11 +25,11 @@ const GAMES_COLLECTION = 'games';
 
 // 標準の難易度設定
 const DEFAULT_DIFFICULTIES: DifficultyDefinition[] = [
-  { id: 'EASY', name: 'EASY', color: '#43a047', order: 0, minLevel: 1, maxLevel: 5 },
-  { id: 'NORMAL', name: 'NORMAL', color: '#1976d2', order: 1, minLevel: 3, maxLevel: 8 },
-  { id: 'HARD', name: 'HARD', color: '#ff9800', order: 2, minLevel: 6, maxLevel: 11 },
-  { id: 'EXPERT', name: 'EXPERT', color: '#d32f2f', order: 3, minLevel: 9, maxLevel: 13 },
-  { id: 'MASTER', name: 'MASTER', color: '#9c27b0', order: 4, minLevel: 12, maxLevel: 15 }
+  { id: 'EASY', name: 'EASY', color: '#43a047', order: 0, minLevel: 1, maxLevel: 10 },
+  { id: 'NORMAL', name: 'NORMAL', color: '#1976d2', order: 1, minLevel: 5, maxLevel: 20 },
+  { id: 'HARD', name: 'HARD', color: '#ff9800', order: 2, minLevel: 15, maxLevel: 25 },
+  { id: 'EXPERT', name: 'EXPERT', color: '#d32f2f', order: 3, minLevel: 20, maxLevel: 30 },
+  { id: 'MASTER', name: 'MASTER', color: '#9c27b0', order: 4, minLevel: 25, maxLevel: 37 }
 ];
 
 const GameTitleManager: React.FC = () => {
@@ -83,7 +83,7 @@ const GameTitleManager: React.FC = () => {
       setDescription(game.description || '');
       setImageUrl(game.imageUrl || '');
       setGameMinLevel(game.minLevel !== undefined ? game.minLevel : 1);
-      setGameMaxLevel(game.maxLevel !== undefined ? game.maxLevel : 15);
+      setGameMaxLevel(game.maxLevel !== undefined ? game.maxLevel : 37); // デフォルト値を37に変更
       
       // 修正: difficulties が存在することを確認
       if (game.difficulties && Array.isArray(game.difficulties) && game.difficulties.length > 0) {
@@ -101,7 +101,7 @@ const GameTitleManager: React.FC = () => {
       setDescription('');
       setImageUrl('');
       setGameMinLevel(1);
-      setGameMaxLevel(15);
+      setGameMaxLevel(37); // デフォルト値を37に変更
       setDifficulties([...DEFAULT_DIFFICULTIES]);
     }
     
@@ -131,7 +131,7 @@ const GameTitleManager: React.FC = () => {
         color: '#888888', 
         order: difficulties.length,
         minLevel: 1,
-        maxLevel: 15
+        maxLevel: 37 // デフォルト値を37に変更
       }
     ]);
   };

@@ -26,9 +26,9 @@ const ExcelUploader: React.FC = () => {
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // 有効な楽曲数を取得 (空の行や無効なデータをフィルタリング)
+  // 有効な楽曲数を取得 (1曲分少なくする)
   const validSongCount = songs && Array.isArray(songs) ? 
-    songs.filter(song => song && song.name && song.name.trim() !== '').length : 0;
+  Math.max(0, songs.filter(song => song && song.name && song.name.trim() !== '').length - 1) : 0;
   
   // ゲーム選択ハンドラ
   const handleGameChange = (event: React.ChangeEvent<{ value: unknown }>) => {
@@ -79,8 +79,10 @@ const ExcelUploader: React.FC = () => {
     if (!file || !selectedGameId || validSongCount === 0) return;
     
     try {
-      // 空でない有効な楽曲のみをフィルタリング
-      const validSongs = songs.filter(song => song && song.name && song.name.trim() !== '');
+      // 空でない有効な楽曲のみをフィルタリング (最後の1つを除外)
+      const validSongs = songs
+        .filter(song => song && song.name && song.name.trim() !== '')
+        .slice(0, -1); // 最後の1つを除外
       
       // 楽曲データをアップロード (フィルタリングされた曲のみ)
       await uploadSongs(selectedGameId, validSongs, file);

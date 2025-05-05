@@ -17,7 +17,7 @@ import { Game } from '../types/Game';
 
 const SongDetails: React.FC = () => {
   const { songId } = useParams<{ songId: string }>();
-  const { songs, games, loading, error } = useSongData();
+  const { songs, games, loading, error, refreshSongs } = useSongData();
   const [song, setSong] = useState<Song | null>(null);
   const [game, setGame] = useState<Game | null>(null);
   const navigate = useNavigate();
@@ -26,9 +26,14 @@ const SongDetails: React.FC = () => {
   useEffect(() => {
     if (!songId || loading) return;
     
+    // 楽曲IDからゲームIDを抽出（{gameId}_{songNo}の形式）
+    const gameIdMatch = songId.match(/^(.+)_\d+$/);
+    const gameId = gameIdMatch ? gameIdMatch[1] : null;
+    
     const foundSong = songs.find(s => s.id === songId);
     
     if (foundSong) {
+      // 楽曲が見つかった場合
       setSong(foundSong);
       const foundGame = games.find(g => g.id === foundSong.gameId);
       if (foundGame) {
@@ -36,10 +41,25 @@ const SongDetails: React.FC = () => {
       } else {
         setGame(null);
       }
+    } else if (gameId) {
+      // 楽曲が見つからなかった場合、制限なしで再取得を試みる
+      refreshSongs(gameId).then(() => {
+        // 再取得後に再度検索
+        const refreshedSong = songs.find(s => s.id === songId);
+        if (refreshedSong) {
+          setSong(refreshedSong);
+          const foundGame = games.find(g => g.id === refreshedSong.gameId);
+          if (foundGame) {
+            setGame(foundGame);
+          }
+        } else {
+          setSong(null);
+        }
+      });
     } else {
       setSong(null);
     }
-  }, [songId, songs, games, loading]);
+  }, [songId, songs, games, loading, refreshSongs]);
   
   const handleBack = () => {
     navigate(-1);

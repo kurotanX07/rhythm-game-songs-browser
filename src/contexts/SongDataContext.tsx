@@ -24,7 +24,8 @@ interface SongDataContextType {
   error: string | null;
   selectGame: (gameId: string) => void;
   refreshData: () => Promise<void>;
-  refreshDataAdmin: () => Promise<void>;  // 追加
+  refreshDataAdmin: () => Promise<void>;
+  refreshSongs: (gameId: string) => Promise<void>; // 追加: 楽曲取得専用の関数
 }
 
 const SongDataContext = createContext<SongDataContextType | null>(null);
@@ -172,6 +173,25 @@ export function SongDataProvider({ children }: SongDataProviderProps): JSX.Eleme
       setLoading(false);
     }
   };
+
+  // 修正後のrefreshSongs関数 (楽曲取得専用、更新制限なし)
+  const refreshSongs = async (gameId: string) => {
+    if (!gameId) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // 楽曲一覧を取得
+      const fetchedSongs = await getSongs(gameId);
+      setSongs(fetchedSongs);
+    } catch (err: any) {
+      console.error('楽曲データ取得エラー:', err);
+      setError(err.message || '楽曲情報の取得に失敗しました');
+    } finally {
+      setLoading(false);
+    }
+  };
   
   const refreshDataAdmin = async () => {
     try {
@@ -215,7 +235,8 @@ export function SongDataProvider({ children }: SongDataProviderProps): JSX.Eleme
     error,
     selectGame,
     refreshData,
-    refreshDataAdmin
+    refreshDataAdmin,
+    refreshSongs  // 楽曲取得専用の関数を追加
   };
   
   return (

@@ -34,9 +34,9 @@ const FilterControls: React.FC<FilterControlsProps> = ({
   
   const difficulties = game?.difficulties || [];
   
-  // Get min and max levels from the game
+  // Get min and max levels from the game - デフォルト値を修正
   const minLevel = game?.minLevel || 1;
-  const maxLevel = game?.maxLevel || 15;
+  const maxLevel = game?.maxLevel || 37; // デフォルト最大値を37に変更
   
   useEffect(() => {
     // Reset difficulty when game changes
@@ -44,7 +44,10 @@ const FilterControls: React.FC<FilterControlsProps> = ({
     
     // Reset level range when game changes
     if (game) {
-      setLevelRange([game.minLevel || 1, game.maxLevel || 15]);
+      // ゲームの設定値またはデフォルト値を使用
+      const gameMinLevel = game.minLevel || 1;
+      const gameMaxLevel = game.maxLevel || 37; // 最大値のデフォルトを37に設定
+      setLevelRange([gameMinLevel, gameMaxLevel]);
     }
   }, [game]);
   
@@ -145,6 +148,11 @@ const FilterControls: React.FC<FilterControlsProps> = ({
             min={minLevel}
             max={maxLevel}
             aria-labelledby="level-range-slider"
+            marks={[
+              { value: minLevel, label: minLevel.toString() },
+              { value: Math.floor((maxLevel - minLevel) / 2) + minLevel, label: Math.floor((maxLevel - minLevel) / 2) + minLevel },
+              { value: maxLevel, label: maxLevel.toString() }
+            ]}
           />
         </Box>
       </Box>

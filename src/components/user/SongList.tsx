@@ -5,11 +5,13 @@ import {
   Box, Typography, Chip, Grid, Table, TableBody, TableCell, 
   TableContainer, TableHead, TableRow, Paper, Tooltip, 
   IconButton, Pagination, FormControl, InputLabel, Select, 
-  MenuItem, SelectChangeEvent
+  MenuItem, SelectChangeEvent, Stack
 } from '@mui/material';
 import YouTubeIcon from '@mui/icons-material/YouTube';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import ArrowDropUpIcon from '@mui/icons-material/ArrowDropUp';
+import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { Song } from '../../types/Song';
 import { Game, DifficultyDefinition } from '../../types/Game';
 import { FilterOptions } from './FilterControls';
@@ -29,6 +31,8 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
   
   // Sort order state
   const [sortField, setSortField] = useState<string>('songNo');
+  const [sortDiffId, setSortDiffId] = useState<string | null>(null);
+  const [sortIsCombo, setSortIsCombo] = useState<boolean>(false);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
   // ゲームの難易度を順序でソート (memoized)
@@ -106,6 +110,23 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
   // Apply sorting (memoized)
   const sortedSongs = useMemo(() => {
     return [...filteredSongs].sort((a, b) => {
+      // 難易度レベルでソート
+      if (sortDiffId) {
+        const levelA = a.difficulties[sortDiffId]?.level || 0;
+        const levelB = b.difficulties[sortDiffId]?.level || 0;
+        
+        if (sortIsCombo) {
+          // コンボ数でソート
+          const comboA = a.difficulties[sortDiffId]?.combo || 0;
+          const comboB = b.difficulties[sortDiffId]?.combo || 0;
+          return sortDirection === 'asc' ? comboA - comboB : comboB - comboA;
+        } else {
+          // レベルでソート
+          return sortDirection === 'asc' ? levelA - levelB : levelB - levelA;
+        }
+      }
+      
+      // 通常フィールドでソート
       if (sortField === 'songNo') {
         return sortDirection === 'asc' ? a.songNo - b.songNo : b.songNo - a.songNo;
       } else if (sortField === 'name') {
@@ -121,7 +142,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
       }
       return 0;
     });
-  }, [filteredSongs, sortField, sortDirection]);
+  }, [filteredSongs, sortField, sortDiffId, sortIsCombo, sortDirection]);
   
   // Pagination calculation (memoized)
   const paginatedSongs = useMemo(() => {
@@ -139,13 +160,36 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
     setPage(1); // Reset to first page
   };
   
+  // 基本フィールドのソート
   const handleSortChange = (field: string) => {
+    // 難易度ソートをリセット
+    setSortDiffId(null);
+    setSortIsCombo(false);
+    
     if (sortField === field) {
       // Toggle direction if same field
       setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
     } else {
       // Set new field and reset direction to ascending
       setSortField(field);
+      setSortDirection('asc');
+    }
+  };
+  
+  // 難易度レベルのソート
+  const handleDifficultySort = (diffId: string, isCombo: boolean = false) => {
+    const isSameSortCriteria = sortDiffId === diffId && sortIsCombo === isCombo;
+    
+    // 通常フィールドソートをリセット
+    setSortField('');
+    // 新しい難易度とタイプをセット
+    setSortDiffId(diffId);
+    setSortIsCombo(isCombo);
+    
+    // 同じフィールドの場合は方向を切り替え
+    if (isSameSortCriteria) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
       setSortDirection('asc');
     }
   };
@@ -166,6 +210,19 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
       window.open(url, '_blank');
     }
   }, []);
+  
+  // ソートアイコンを表示
+  const renderSortIcon = (field: string, diffId: string | null = null, isCombo: boolean = false) => {
+    const isActive = diffId 
+      ? (sortDiffId === diffId && sortIsCombo === isCombo)
+      : (sortField === field);
+      
+    if (!isActive) return null;
+    
+    return sortDirection === 'asc' 
+      ? <ArrowDropUpIcon fontSize="small" />
+      : <ArrowDropDownIcon fontSize="small" />;
+  };
   
   // 難易度定義を取得
   const getDifficultyDefinition = useCallback((id: string): DifficultyDefinition | undefined => {
@@ -224,22 +281,47 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                 onClick={() => handleSortChange('songNo')}
                 sx={{ cursor: 'pointer', fontWeight: 'bold' }}
               >
-                No.{sortField === 'songNo' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
+                No.{renderSortIcon('songNo')}
               </TableCell>
               <TableCell 
                 onClick={() => handleSortChange('name')}
                 sx={{ cursor: 'pointer', fontWeight: 'bold' }}
               >
-                楽曲名{sortField === 'name' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
+                楽曲名{renderSortIcon('name')}
               </TableCell>
               <TableCell 
                 onClick={() => handleSortChange('artist')}
                 sx={{ cursor: 'pointer', fontWeight: 'bold' }}
               >
-                アーティスト{sortField === 'artist' && (sortDirection === 'asc' ? ' ↑' : ' ↓')}
+                アーティスト{renderSortIcon('artist')}
               </TableCell>
               {sortedDifficulties.map(diff => (
-                <TableCell key={diff.id} align="center">{diff.name}</TableCell>
+                <TableCell key={diff.id} align="center">
+                  <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                    <Box 
+                      sx={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        cursor: 'pointer',
+                        '&:hover': { textDecoration: 'underline' }
+                      }}
+                      onClick={() => handleDifficultySort(diff.id, false)}
+                    >
+                      {diff.name}{renderSortIcon('', diff.id, false)}
+                    </Box>
+                    <Typography 
+                      variant="caption" 
+                      sx={{ 
+                        color: 'text.secondary',
+                        cursor: 'pointer',
+                        '&:hover': { textDecoration: 'underline' }
+                      }}
+                      onClick={() => handleDifficultySort(diff.id, true)}
+                    >
+                      コンボ{renderSortIcon('', diff.id, true)}
+                    </Typography>
+                  </Box>
+                </TableCell>
               ))}
               <TableCell align="center">詳細</TableCell>
             </TableRow>
@@ -266,17 +348,21 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   return (
                     <TableCell key={diff.id} align="center">
                       {diffInfo && diffInfo.level ? (
-                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                        <Stack spacing={0.5} alignItems="center">
                           <Chip
                             label={diffInfo.level}
                             size="small"
                             sx={{
                               bgcolor: diff.color,
                               color: 'white',
-                              fontWeight: 'bold',
-                              mb: 0.5
+                              fontWeight: 'bold'
                             }}
                           />
+                          
+                          {/* コンボ数表示 */}
+                          <Typography variant="caption" color="text.secondary">
+                            {diffInfo.combo || '-'}
+                          </Typography>
                           
                           {diffInfo.youtubeUrl && (
                             <Tooltip title="YouTubeで視聴">
@@ -289,7 +375,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                               </IconButton>
                             </Tooltip>
                           )}
-                        </Box>
+                        </Stack>
                       ) : (
                         '-'
                       )}
