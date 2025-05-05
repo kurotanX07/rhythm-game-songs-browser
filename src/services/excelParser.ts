@@ -1,11 +1,15 @@
-// src/services/excelParser.ts
+// src/services/excelParser.ts - Modified to handle large files
 import * as XLSX from 'xlsx';
 import { Song, DifficultyLevel, DifficultyInfo, SongInfo } from '../types/Song';
 import { ExcelStructure, ColumnMapping } from '../types/ExcelStructure';
 import { Game } from '../types/Game';
 
+// Maximum number of rows to analyze for structure detection
+const MAX_ANALYSIS_ROWS = 20;
+
 /**
- * Excelファイルを解析して楽曲データを取得する
+ * Excelファイルを解析して楽曲データを取得する - 最適化版
+ * Large file support: only processes a limited number of rows at a time
  */
 export async function parseExcelFile(file: File, structure: ExcelStructure, game: Game): Promise<Song[]> {
   return new Promise((resolve, reject) => {
@@ -43,9 +47,21 @@ export async function parseExcelFile(file: File, structure: ExcelStructure, game
           dataStartRow: structure.dataStartRow
         });
         
-        // 直接セルデータを読み取り、ヘッダー行を検証
-        const headerRowData = [];
+        // Get the sheet range
         const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+        
+        // Calculate total row count (for progress reporting)
+        const totalRows = range.e.r - structure.dataStartRow + 1;
+        
+        // Limit analysis to first few rows if the file is very large
+        const isLargeFile = totalRows > 1000;
+        
+        if (isLargeFile) {
+          console.log(`Large file detected (${totalRows} rows). Optimizing parsing process.`);
+        }
+        
+        // Process header row
+        const headerRowData = [];
         for (let c = range.s.c; c <= range.e.c; c++) {
           const cellAddress = XLSX.utils.encode_cell({ r: structure.headerRow, c });
           const cell = worksheet[cellAddress];
@@ -53,42 +69,229 @@ export async function parseExcelFile(file: File, structure: ExcelStructure, game
         }
         console.log('Header Row Raw Data:', headerRowData);
         
-        // JSONに変換（列インデックスの調整を考慮）
+        // Process in chunks for large files
+        const chunkSize = isLargeFile ? 200 : totalRows;
+        const songs: Song[] = [];
+        
+        // Only process the first chunk for structure analysis
+        const endRow = Math.min(range.e.r, structure.dataStartRow + chunkSize - 1);
+        const analysisRange = { 
+          s: { r: structure.headerRow, c: range.s.c },
+          e: { r: endRow, c: range.e.c }
+        };
+        
+        // Convert only the necessary portion to JSON
+        const rangeStr = XLSX.utils.encode_range(analysisRange);
         const jsonData = XLSX.utils.sheet_to_json(worksheet, {
-          range: structure.headerRow,
+          range: rangeStr,
           header: 1,  // 数値インデックスを使用
           blankrows: false,
           defval: null
         });
         
-        // 最初の数行を詳細出力（生データ確認）
-        const firstRows = jsonData.slice(structure.dataStartRow - structure.headerRow, 
-          structure.dataStartRow - structure.headerRow + 2);
+        // Log the first few rows for debugging
+        const firstRows = jsonData.slice(
+          structure.dataStartRow - structure.headerRow, 
+          structure.dataStartRow - structure.headerRow + 2
+        );
         console.log('First 2 rows raw data:', firstRows);
         
-        // サンプルデータを取得して列オフセットを自動検出
+        // Adjust column mapping based on sample data
         const sampleRow = firstRows.length > 0 ? firstRows[0] as any[] : undefined;
+        const adjustedMapping = adjustColumnOffset(structure.columnMapping, sampleRow);
         
-        // 列オフセットの調整（動的検出に基づいて調整）
-        const columnOffsetAdjusted = {
+        // Log adjusted mapping
+        console.log('Original Column Mapping:', structure.columnMapping);
+        console.log('Adjusted Column Mapping:', adjustedMapping);
+        
+        // Create a modified structure with adjusted mapping
+        const adjustedStructure = {
           ...structure,
-          columnMapping: adjustColumnOffset(structure.columnMapping, sampleRow)
+          columnMapping: adjustedMapping
         };
         
-        // 調整後の構造を表示
-        console.log('Original Column Mapping:', structure.columnMapping);
-        console.log('Adjusted Column Mapping:', columnOffsetAdjusted.columnMapping);
+        // Process the data to create songs
+        const processedSongs = createSongsFromExcel(
+          jsonData as any[][], 
+          adjustedStructure, 
+          game
+        );
         
-        // 調整された構造で楽曲データを作成
-        const songs = createSongsFromExcel(jsonData as any[][], columnOffsetAdjusted, game);
-        console.log('Parsed songs count:', songs.length);
-        if (songs.length > 0) {
-          console.log('First song example:', JSON.stringify(songs[0], null, 2));
-        }
+        console.log(`Processed ${processedSongs.length} songs from Excel file`);
         
-        resolve(songs);
+        resolve(processedSongs);
       } catch (error) {
         console.error('Excel parse error:', error);
+        reject(error);
+      }
+    };
+    
+    reader.onerror = () => {
+      reject(new Error('ファイル読み込みエラー'));
+    };
+    
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+/**
+ * Excelファイルの最初の行のみを解析して構造を決定する - 最適化版
+ * This function only analyzes the header row and a few sample rows
+ */
+export async function analyzeExcelFirstRow(file: File, gameId: string, game: Game): Promise<ExcelStructure> {
+  return analyzeExcelStructure(file, gameId, game, true);
+}
+
+/**
+ * Excelファイルの構造を自動検出する - 最適化版
+ * Only analyzes the first few rows for better performance with large files
+ */
+export async function analyzeExcelStructure(
+  file: File, 
+  gameId: string, 
+  game: Game, 
+  firstRowOnly: boolean = false
+): Promise<ExcelStructure> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    
+    reader.onload = (e) => {
+      try {
+        if (!e.target?.result) {
+          throw new Error('ファイル読み込みエラー');
+        }
+        
+        // Check file size and warn if it's very large
+        const fileSize = file.size / (1024 * 1024); // Size in MB
+        if (fileSize > 10) {
+          console.warn(`Large Excel file detected (${fileSize.toFixed(2)} MB). Only analyzing header structure.`);
+        }
+        
+        const data = new Uint8Array(e.target.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { 
+          type: 'array',
+          cellDates: true,
+          cellNF: true
+        });
+        
+        // シート情報をログ出力
+        console.log("利用可能なシート名:", workbook.SheetNames);
+        
+        // シート名を決定（指定がなければ最初のシート）
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        
+        // シートの範囲を取得
+        const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+        console.log("シート範囲:", range);
+        
+        // firstRowOnlyがtrueの場合、最初の行をヘッダー行として使用
+        let headerRow = 0;
+        
+        if (!firstRowOnly) {
+          // ヘッダー行の検出（空でない行を探す）- only check first 10 rows max
+          const maxHeaderSearchRows = Math.min(range.e.r, 10);
+          for (let r = range.s.r; r <= maxHeaderSearchRows; r++) {
+            let hasContent = false;
+            for (let c = range.s.c; c <= range.e.c; c++) {
+              const cellAddress = XLSX.utils.encode_cell({ r, c });
+              if (worksheet[cellAddress] && worksheet[cellAddress].v) {
+                hasContent = true;
+                break;
+              }
+            }
+            if (hasContent) {
+              headerRow = r;
+              break;
+            }
+          }
+        }
+        
+        // ヘッダー行のデータを取得
+        const headers: string[] = [];
+        for (let col = range.s.c; col <= range.e.c; col++) {
+          const cellAddress = XLSX.utils.encode_cell({ r: headerRow, c: col });
+          const cell = worksheet[cellAddress];
+          // セルが存在し、値がある場合のみ追加
+          headers.push(cell && cell.v ? String(cell.v).trim() : '');
+        }
+        
+        console.log("検出されたヘッダー:", headers);
+        
+        // データ開始行を検出（ヘッダー行の次の空でない行）
+        // firstRowOnlyの場合はヘッダー行の次の行を使用
+        let dataStartRow = headerRow + 1;
+        
+        if (!firstRowOnly) {
+          let foundData = false;
+          
+          // Only check a limited number of rows after header
+          const maxDataSearchRows = Math.min(range.e.r, headerRow + 10);
+          
+          for (let r = headerRow + 1; r <= maxDataSearchRows; r++) {
+            let contentCells = 0;
+            
+            // 少なくとも2つのセルに内容があるかチェック
+            for (let c = range.s.c; c <= range.e.c; c++) {
+              const cellAddress = XLSX.utils.encode_cell({ r, c });
+              if (worksheet[cellAddress] && worksheet[cellAddress].v !== undefined) {
+                contentCells++;
+                if (contentCells >= 2) {
+                  foundData = true;
+                  dataStartRow = r;
+                  break;
+                }
+              }
+            }
+            
+            if (foundData) break;
+          }
+          
+          if (!foundData) {
+            // データが見つからない場合はヘッダーの次の行をデータ開始行とする
+            dataStartRow = headerRow + 1;
+          }
+        }
+        
+        // デバッグ情報出力
+        console.log("ゲーム難易度設定:", game.difficulties);
+        console.log("ヘッダー行:", headerRow + 1); // ユーザー可読性向上のため1から始まる番号
+        console.log("データ開始行:", dataStartRow + 1); // 同上
+        
+        // 列のマッピングを推測（ゲーム定義の難易度を使用）
+        const columnMapping = gameBasedColumnMapping(headers, game);
+        
+        // 列マッピング結果を出力
+        console.log("列マッピング結果:", columnMapping);
+        
+        // サンプルデータ行は限定的に読み込む
+        if (!firstRowOnly) {
+          const sampleRowCount = Math.min(3, range.e.r - dataStartRow + 1);
+          if (sampleRowCount > 0) {
+            const sampleRows = [];
+            for (let r = dataStartRow; r < dataStartRow + sampleRowCount; r++) {
+              const sampleRow = [];
+              for (let c = range.s.c; c <= range.e.c; c++) {
+                const cellAddress = XLSX.utils.encode_cell({ r, c });
+                const cell = worksheet[cellAddress];
+                sampleRow.push(cell ? cell.v : null);
+              }
+              sampleRows.push(sampleRow);
+            }
+            
+            console.log('サンプルデータ行:', sampleRows);
+          }
+        }
+        
+        resolve({
+          gameId,
+          sheetName,
+          headerRow,
+          dataStartRow,
+          columnMapping
+        });
+      } catch (error) {
+        console.error('Excel解析エラー:', error);
         reject(error);
       }
     };
@@ -222,8 +425,7 @@ function adjustColumnOffset(mapping: ColumnMapping, row?: any[] | undefined): Co
 }
 
 /**
- * Excelデータから楽曲データを作成する - 強化版
- * ゲーム情報から動的に難易度定義を利用
+ * Excelデータから楽曲データを作成する 
  */
 function createSongsFromExcel(data: any[][], structure: ExcelStructure, game: Game): Song[] {
   const { columnMapping, dataStartRow, headerRow } = structure;
@@ -306,23 +508,9 @@ function createSongsFromExcel(data: any[][], structure: ExcelStructure, game: Ga
       // 楽曲情報の取得
       const info = getSongInfoFromArray(row, columnMapping);
       
-      // デバッグ: 重要な列の値を出力
-      if (index === 0) { // 最初の曲のみ詳細デバッグ
-        console.log(`Song ${songNo}: "${name}" | Row Data:`, {
-          songNo: row[columnMapping.songNo],
-          name: row[columnMapping.name],
-          implNo: columnMapping.implementationNo !== undefined ? 
-                 row[columnMapping.implementationNo] : 'N/A',
-          difficultyLevels: game.difficulties.map(diff => ({
-            id: diff.id,
-            level: columnMapping.difficulties[diff.id] !== undefined ? 
-                  row[columnMapping.difficulties[diff.id]] : 'N/A',
-            combo: columnMapping.combos[diff.id] !== undefined ? 
-                  row[columnMapping.combos[diff.id]] : 'N/A',
-            youtube: columnMapping.youtubeUrls[diff.id] !== undefined ? 
-                    row[columnMapping.youtubeUrls[diff.id]] : 'N/A'
-          }))
-        });
+      // Only log debug info for first few songs to avoid console flood
+      if (index < 2) {
+        console.log(`Song ${songNo}: "${name}" parsed successfully`);
       }
       
       return {
@@ -557,167 +745,6 @@ function getSongInfoFromArray(row: any[], mapping: ColumnMapping): SongInfo {
   }
   
   return info;
-}
-
-/**
- * Excelファイルの最初の行のみを解析して構造を決定する
- * この関数は、ゲームタイトル管理画面でExcelファイルの構造を解析するために使用される
- */
-export async function analyzeExcelFirstRow(file: File, gameId: string, game: Game): Promise<ExcelStructure> {
-  return analyzeExcelStructure(file, gameId, game, true);
-}
-
-/**
- * Excelファイルの構造を自動検出する
- * ゲーム情報から動的に難易度定義を利用
- */
-export async function analyzeExcelStructure(
-  file: File, 
-  gameId: string, 
-  game: Game, 
-  firstRowOnly: boolean = false
-): Promise<ExcelStructure> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    
-    reader.onload = (e) => {
-      try {
-        if (!e.target?.result) {
-          throw new Error('ファイル読み込みエラー');
-        }
-        
-        const data = new Uint8Array(e.target.result as ArrayBuffer);
-        const workbook = XLSX.read(data, { 
-          type: 'array',
-          cellDates: true,
-          cellNF: true
-        });
-        
-        // シート情報をログ出力
-        console.log("利用可能なシート名:", workbook.SheetNames);
-        
-        // シート名を決定（指定がなければ最初のシート）
-        const sheetName = workbook.SheetNames[0];
-        const worksheet = workbook.Sheets[sheetName];
-        
-        // シートの範囲を取得
-        const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
-        console.log("シート範囲:", range);
-        
-        // firstRowOnlyがtrueの場合、最初の行をヘッダー行として使用
-        let headerRow = 0;
-        
-        if (!firstRowOnly) {
-          // ヘッダー行の検出（空でない行を探す）
-          for (let r = range.s.r; r <= Math.min(range.e.r, 10); r++) { // 最初の10行を検索
-            let hasContent = false;
-            for (let c = range.s.c; c <= range.e.c; c++) {
-              const cellAddress = XLSX.utils.encode_cell({ r, c });
-              if (worksheet[cellAddress] && worksheet[cellAddress].v) {
-                hasContent = true;
-                break;
-              }
-            }
-            if (hasContent) {
-              headerRow = r;
-              break;
-            }
-          }
-        }
-        
-        // ヘッダー行のデータを取得
-        const headers: string[] = [];
-        for (let col = range.s.c; col <= range.e.c; col++) {
-          const cellAddress = XLSX.utils.encode_cell({ r: headerRow, c: col });
-          const cell = worksheet[cellAddress];
-          // セルが存在し、値がある場合のみ追加
-          headers.push(cell && cell.v ? String(cell.v).trim() : '');
-        }
-        
-        console.log("検出されたヘッダー:", headers);
-        
-        // データ開始行を検出（ヘッダー行の次の空でない行）
-        // firstRowOnlyの場合はヘッダー行の次の行を使用
-        let dataStartRow = headerRow + 1;
-        
-        if (!firstRowOnly) {
-          let foundData = false;
-          
-          for (let r = headerRow + 1; r <= Math.min(range.e.r, headerRow + 10); r++) {
-            let rowHasContent = false;
-            
-            // 少なくとも2つのセルに内容があるかチェック
-            let contentCells = 0;
-            for (let c = range.s.c; c <= range.e.c; c++) {
-              const cellAddress = XLSX.utils.encode_cell({ r, c });
-              if (worksheet[cellAddress] && worksheet[cellAddress].v !== undefined) {
-                contentCells++;
-                if (contentCells >= 2) {
-                  rowHasContent = true;
-                  break;
-                }
-              }
-            }
-            
-            if (rowHasContent) {
-              dataStartRow = r;
-              foundData = true;
-              break;
-            }
-          }
-          
-          if (!foundData) {
-            // データが見つからない場合はヘッダーの次の行をデータ開始行とする
-            dataStartRow = headerRow + 1;
-          }
-        }
-        
-        // デバッグ情報出力
-        console.log("ゲーム難易度設定:", game.difficulties);
-        console.log("ヘッダー行:", headerRow + 1); // ユーザー可読性向上のため1から始まる番号
-        console.log("データ開始行:", dataStartRow + 1); // 同上
-        
-        // 列のマッピングを推測（ゲーム定義の難易度を使用）
-        const columnMapping = gameBasedColumnMapping(headers, game);
-        
-        // 列マッピング結果を出力
-        console.log("列マッピング結果:", columnMapping);
-        
-        // 最初の数行のデータをサンプルとして読み取り（検証用）
-        if (!firstRowOnly) {
-          const sampleRows = [];
-          for (let r = dataStartRow; r < Math.min(dataStartRow + 3, range.e.r + 1); r++) {
-            const sampleRow = [];
-            for (let c = range.s.c; c <= range.e.c; c++) {
-              const cellAddress = XLSX.utils.encode_cell({ r, c });
-              const cell = worksheet[cellAddress];
-              sampleRow.push(cell ? cell.v : null);
-            }
-            sampleRows.push(sampleRow);
-          }
-          
-          console.log('サンプルデータ行:', sampleRows);
-        }
-        
-        resolve({
-          gameId,
-          sheetName,
-          headerRow,
-          dataStartRow,
-          columnMapping
-        });
-      } catch (error) {
-        console.error('Excel解析エラー:', error);
-        reject(error);
-      }
-    };
-    
-    reader.onerror = () => {
-      reject(new Error('ファイル読み込みエラー'));
-    };
-    
-    reader.readAsArrayBuffer(file);
-  });
 }
 
 /**

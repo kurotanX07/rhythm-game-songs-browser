@@ -1,4 +1,4 @@
-// src/hooks/useExcelParser.ts
+// src/hooks/useExcelParser.ts - Modified for improved progress tracking
 import { useState } from 'react';
 import { Song } from '../types/Song';
 import { ExcelStructure } from '../types/ExcelStructure';
@@ -15,12 +15,47 @@ import {
 import { uploadExcelFile } from '../services/storageService';
 import { Game } from '../types/Game';
 
+// New types for tracking progress
+export interface UploadProgress {
+  phase: 'analyzing' | 'parsing' | 'deleting' | 'uploading' | 'saving-structure' | 'complete' | 'idle';
+  fileProgress: number; // 0-100 for file upload
+  songsProgress: {
+    current: number;
+    total: number;
+    percentage: number;
+  };
+  message: string;
+}
+
 export function useExcelParser() {
   const [songs, setSongs] = useState<Song[]>([]);
   const [structure, setStructure] = useState<ExcelStructure | null>(null);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  
+  // Enhanced progress tracking
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress>({
+    phase: 'idle',
+    fileProgress: 0,
+    songsProgress: {
+      current: 0,
+      total: 0,
+      percentage: 0
+    },
+    message: ''
+  });
+  
+  // Helper to update progress
+  const updateProgress = (update: Partial<UploadProgress>) => {
+    setUploadProgress(current => ({
+      ...current,
+      ...update,
+      songsProgress: {
+        ...current.songsProgress,
+        ...(update.songsProgress || {})
+      }
+    }));
+  };
   
   /**
    * Excelファイルの最初の行だけを解析して構造を決定する
@@ -29,15 +64,27 @@ export function useExcelParser() {
     try {
       setLoading(true);
       setError(null);
+      updateProgress({
+        phase: 'analyzing',
+        message: 'Excelファイルの構造を解析中...'
+      });
       
       // 最初の行のみ解析して構造を決定
       const excelStructure = await analyzeFirstRow(file, gameId, game);
       
       setStructure(excelStructure);
+      updateProgress({
+        phase: 'idle',
+        message: '構造解析完了'
+      });
       return excelStructure;
     } catch (err: any) {
       console.error('Excel最初の行解析エラー:', err);
       setError(err.message || 'Excelファイルの構造解析に失敗しました');
+      updateProgress({
+        phase: 'idle',
+        message: 'エラー: ' + (err.message || 'Excelファイルの構造解析に失敗しました')
+      });
       throw err;
     } finally {
       setLoading(false);
@@ -51,6 +98,10 @@ export function useExcelParser() {
     try {
       setLoading(true);
       setError(null);
+      updateProgress({
+        phase: 'analyzing',
+        message: 'Excelファイルの構造を解析中...'
+      });
       
       // ゲーム情報を取得
       const gameData = await getGame(gameId);
@@ -67,10 +118,18 @@ export function useExcelParser() {
       }
       
       setStructure(excelStructure);
+      updateProgress({
+        phase: 'idle',
+        message: '構造解析完了'
+      });
       return excelStructure;
     } catch (err: any) {
       console.error('Excel構造解析エラー:', err);
       setError(err.message || 'Excelファイルの構造解析に失敗しました');
+      updateProgress({
+        phase: 'idle',
+        message: 'エラー: ' + (err.message || 'Excelファイルの構造解析に失敗しました')
+      });
       throw err;
     } finally {
       setLoading(false);
@@ -110,11 +169,23 @@ export function useExcelParser() {
     try {
       setLoading(true);
       setError(null);
+      updateProgress({
+        phase: 'saving-structure',
+        message: 'Excel構造情報を保存中...'
+      });
       
       await saveExcelStructure(structureData);
+      updateProgress({
+        phase: 'idle',
+        message: '構造情報の保存が完了しました'
+      });
     } catch (err: any) {
       console.error('Excel構造保存エラー:', err);
       setError(err.message || 'Excel構造情報の保存に失敗しました');
+      updateProgress({
+        phase: 'idle',
+        message: 'エラー: ' + (err.message || 'Excel構造情報の保存に失敗しました')
+      });
       throw err;
     } finally {
       setLoading(false);
@@ -128,6 +199,15 @@ export function useExcelParser() {
     try {
       setLoading(true);
       setError(null);
+      updateProgress({
+        phase: 'parsing',
+        message: 'Excelファイルのデータを解析中...',
+        songsProgress: {
+          current: 0,
+          total: 100,
+          percentage: 0
+        }
+      });
       
       // ゲーム情報を取得
       const gameData = await getGame(gameId);
@@ -139,10 +219,28 @@ export function useExcelParser() {
       let excelStructure = forceReanalyze ? null : structure;
       
       if (!excelStructure) {
+        updateProgress({
+          message: '構造情報を取得中...',
+          songsProgress: {
+            current: 10,
+            total: 100,
+            percentage: 10
+          }
+        });
+        
         // Only get from Firestore if not forcing reanalysis
         excelStructure = forceReanalyze ? null : await getExcelStructure(gameId);
         
         if (!excelStructure) {
+          updateProgress({
+            message: '構造情報を解析中...',
+            songsProgress: {
+              current: 20,
+              total: 100,
+              percentage: 20
+            }
+          });
+          
           excelStructure = await analyzeExcelStructure(file, gameId, gameData);
           await saveExcelStructure(excelStructure);
         }
@@ -150,8 +248,26 @@ export function useExcelParser() {
         setStructure(excelStructure);
       }
       
+      updateProgress({
+        message: '楽曲データを解析中...',
+        songsProgress: {
+          current: 40,
+          total: 100,
+          percentage: 40
+        }
+      });
+      
       // 楽曲データを解析
       const parsedSongs = await parseExcelFile(file, excelStructure, gameData);
+      
+      updateProgress({
+        message: '楽曲データを処理中...',
+        songsProgress: {
+          current: 80,
+          total: 100,
+          percentage: 80
+        }
+      });
       
       // データの検証とフィルタリング - 空の行や無効なデータを除外
       const validatedSongs = parsedSongs.filter(song => {
@@ -184,10 +300,24 @@ export function useExcelParser() {
       
       setSongs(formattedSongs);
       
+      updateProgress({
+        phase: 'idle',
+        message: `${formattedSongs.length}曲のデータを解析しました`,
+        songsProgress: {
+          current: 100,
+          total: 100,
+          percentage: 100
+        }
+      });
+      
       return formattedSongs;
     } catch (err: any) {
       console.error('ファイル解析エラー:', err);
       setError(err.message || 'Excelファイルの解析に失敗しました');
+      updateProgress({
+        phase: 'idle',
+        message: 'エラー: ' + (err.message || 'Excelファイルの解析に失敗しました')
+      });
       throw err;
     } finally {
       setLoading(false);
@@ -201,7 +331,18 @@ export function useExcelParser() {
     try {
       setLoading(true);
       setError(null);
-      setUploadProgress(0);
+      
+      // Reset progress
+      setUploadProgress({
+        phase: 'uploading',
+        fileProgress: 0,
+        songsProgress: {
+          current: 0,
+          total: songData.length,
+          percentage: 0
+        },
+        message: 'アップロードを準備中...'
+      });
       
       // Step 1: Validate the file
       if (file.size > 50 * 1024 * 1024) { // 50MB limit
@@ -216,10 +357,21 @@ export function useExcelParser() {
       
       const validCount = validSongs.length;
       
-      // Step 2: Save the song data to Firestore
-      console.log(`Saving ${validCount} songs to Firestore...`);
+      if (validCount === 0) {
+        throw new Error('有効な楽曲データがありません。ファイルを確認してください。');
+      }
       
-      // 既存の楽曲を削除
+      // Update progress
+      updateProgress({
+        message: '既存の楽曲データを削除中...',
+        songsProgress: {
+          current: 0,
+          total: validCount,
+          percentage: 0
+        }
+      });
+      
+      // Step 2: Delete existing songs
       await deleteSongsByGameId(gameId);
       
       // Format song data
@@ -233,33 +385,101 @@ export function useExcelParser() {
         }
       }));
       
-      // 新しい楽曲データを保存
-      await saveSongs(formattedSongs);
-      console.log(`${validCount} songs saved to Firestore successfully`);
+      // Update progress
+      updateProgress({
+        message: '楽曲データをアップロード中...',
+        songsProgress: {
+          current: 0,
+          total: validCount,
+          percentage: 0
+        }
+      });
       
-      // Step 3: Update the game's songCount field with the exact count
+      // Step 3: Save new song data - using chunked upload for better performance
+      const CHUNK_SIZE = 100; // Upload 100 songs at a time
+      const chunks = Math.ceil(formattedSongs.length / CHUNK_SIZE);
+      
+      for (let i = 0; i < chunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, formattedSongs.length);
+        const chunk = formattedSongs.slice(start, end);
+        
+        // Upload this chunk
+        await saveSongs(chunk);
+        
+        // Update progress
+        const songsUploaded = end;
+        updateProgress({
+          message: `楽曲データをアップロード中... (${songsUploaded}/${validCount}曲)`,
+          songsProgress: {
+            current: songsUploaded,
+            total: validCount,
+            percentage: Math.round((songsUploaded / validCount) * 100)
+          }
+        });
+      }
+      
+      // Step 4: Update the game's songCount field
       console.log(`Updating game's songCount to ${validCount}...`);
       await updateGameSongCount(gameId, validCount);
       
-      // Step 4: Upload the Excel file to Storage
-      console.log('Uploading Excel file to Storage...');
-      const uploadProgressCallback = (progress: number) => {
-        setUploadProgress(progress);
-        console.log(`Upload progress: ${progress.toFixed(1)}%`);
-      };
+      // Step 5: Upload the Excel file to Storage
+      updateProgress({
+        message: 'Excelファイルをストレージにアップロード中...',
+        fileProgress: 0,
+        songsProgress: {
+          current: validCount,
+          total: validCount,
+          percentage: 100
+        }
+      });
       
-      const downloadUrl = await uploadExcelFile(gameId, file, uploadProgressCallback);
+      console.log('Starting Excel file upload to Storage...');
       
-      if (!downloadUrl) {
-        console.warn('Excel file upload to Storage failed, but song data was saved to Firestore');
-        setError('楽曲データは保存されましたが、Excelファイルのアップロードに問題がありました。ネットワーク接続を確認して、再度お試しください。');
-      } else {
-        console.log('Excel file uploaded successfully');
-        setUploadProgress(100);
+      try {
+        // File upload progress callback with improved error handling
+        const uploadProgressCallback = (progress: number) => {
+          console.log(`Excel upload progress callback: ${progress.toFixed(1)}%`);
+          updateProgress({
+            fileProgress: progress,
+            message: `Excelファイルをアップロード中... (${progress.toFixed(1)}%)`,
+          });
+        };
+        
+        const downloadUrl = await uploadExcelFile(gameId, file, uploadProgressCallback);
+        
+        if (!downloadUrl) {
+          console.warn('Excel file upload to Storage failed, but song data was saved to Firestore');
+          setError('楽曲データは保存されましたが、Excelファイルのアップロードに問題がありました。ネットワーク接続を確認して、再度お試しください。');
+          updateProgress({
+            phase: 'complete',
+            message: '楽曲データの保存は完了しましたが、Excelファイルのアップロードに問題がありました。',
+            fileProgress: 0
+          });
+        } else {
+          console.log('Excel file uploaded successfully with URL:', downloadUrl);
+          updateProgress({
+            phase: 'complete',
+            fileProgress: 100,
+            message: `${validCount}曲のデータのアップロードが完了しました！`,
+          });
+        }
+      } catch (uploadError: any) {
+        console.error('Excel file upload error:', uploadError);
+        setError(`楽曲データは保存されましたが、Excelファイルのアップロードに失敗しました: ${uploadError.message}`);
+        updateProgress({
+          phase: 'complete',
+          message: '楽曲データの保存は完了しましたが、Excelファイルのアップロードに失敗しました。',
+          fileProgress: 0
+        });
       }
     } catch (err: any) {
       console.error('楽曲アップロードエラー:', err);
       setError(err.message || '楽曲データのアップロードに失敗しました');
+      updateProgress({
+        phase: 'idle',
+        message: 'エラー: ' + (err.message || '楽曲データのアップロードに失敗しました'),
+      });
       throw err;
     } finally {
       setLoading(false);

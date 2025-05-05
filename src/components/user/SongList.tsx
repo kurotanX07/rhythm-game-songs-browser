@@ -51,18 +51,18 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
   const [sortIsCombo, setSortIsCombo] = useState<boolean>(false);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
-  // Display settings
-  const [density, setDensity] = useState<DisplayDensity>('compact'); // Default to compact as requested
-  const [fontSize, setFontSize] = useState<number>(12); // Default font size
+  // 最も詰めた表示をデフォルトに設定
+  const [density, setDensity] = useState<DisplayDensity>('compact');
+  const [fontSize, setFontSize] = useState<number>(10); // デフォルトのフォントサイズ
   
   // Column visibility state
   const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
-    artist: true, // Default shown
+    artist: true,
     lyricist: false,
     composer: false,
     arranger: false,
-    duration: true, // Default shown
-    bpm: true, // Default shown
+    duration: true,
+    bpm: true,
     addedDate: false
   });
 
@@ -75,26 +75,26 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
     return [...game.difficulties].sort((a, b) => a.order - b.order);
   }, [game]);
   
-  // Computed density style settings
+  // Computed density style settings - 縦方向を極限まで詰める
   const densityStyles = useMemo(() => {
     switch (density) {
       case 'compact':
         return {
-          padding: '2px 8px',
+          padding: '1px 2px', // 最小限のパディング
           fontSize: `${fontSize}px`,
-          lineHeight: '1.1'
+          lineHeight: '1'  // 最も詰めた行の高さ
         };
       case 'comfortable':
         return {
-          padding: '6px 16px',
+          padding: '2px 4px',
           fontSize: `${fontSize + 1}px`,
-          lineHeight: '1.3'
+          lineHeight: '1.1'
         };
       case 'spacious':
         return {
-          padding: '8px 20px',
+          padding: '4px 6px',
           fontSize: `${fontSize + 2}px`,
-          lineHeight: '1.5'
+          lineHeight: '1.2'
         };
     }
   }, [density, fontSize]);
@@ -167,6 +167,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
   
   // Apply sorting (memoized)
   const sortedSongs = useMemo(() => {
+    // 既存のソートロジック維持
     return [...filteredSongs].sort((a, b) => {
       // Difficulty level sort
       if (sortDiffId) {
@@ -354,7 +355,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
   
   return (
     <>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
         <Typography variant="body2">
           {filteredSongs.length}曲中 {(page - 1) * rowsPerPage + 1}-{Math.min(page * rowsPerPage, filteredSongs.length)}曲目を表示
         </Typography>
@@ -382,15 +383,16 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
             color="primary"
             showFirstButton
             showLastButton
+            size="small"
           />
         </Box>
       </Box>
       
       {/* Display Settings */}
-      <Paper sx={{ p: 1, mb: 2 }}>
+      <Paper sx={{ p: 1, mb: 1 }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
           <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
-            <IconButton onClick={toggleColumnSettings} color={showColumnSettings ? "primary" : "default"}>
+            <IconButton onClick={toggleColumnSettings} color={showColumnSettings ? "primary" : "default"} size="small">
               <ViewColumnIcon />
             </IconButton>
             <Typography variant="body2" sx={{ ml: 1 }}>
@@ -399,16 +401,17 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
           </Box>
           
           <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, maxWidth: 400 }}>
-            <FormatSizeIcon sx={{ mr: 1, color: 'text.secondary' }} />
+            <FormatSizeIcon sx={{ mr: 1, color: 'text.secondary', fontSize: '16px' }} />
             <Typography variant="body2" sx={{ mr: 1, minWidth: 70 }}>文字サイズ:</Typography>
             <Slider
               value={fontSize}
               onChange={handleFontSizeChange}
-              min={10}
-              max={18}
+              min={8}
+              max={16}
               step={1}
               valueLabelDisplay="auto"
               sx={{ maxWidth: 200 }}
+              size="small"
             />
           </Box>
           
@@ -472,7 +475,8 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
         )}
       </Paper>
       
-      <TableContainer component={Paper}>
+      {/* テーブルコンテナを画面幅いっぱいに表示 */}
+      <TableContainer component={Paper} sx={{ width: '100%' }}>
         <Table aria-label="song list table" size="small">
           <TableHead>
             <TableRow>
@@ -482,7 +486,9 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   cursor: 'pointer', 
                   fontWeight: 'bold',
                   ...densityStyles,
-                  width: '60px'
+                  width: '30px', // No.欄を極限まで狭く
+                  minWidth: '30px',
+                  maxWidth: '30px'
                 }}
               >
                 No.{renderSortIcon('songNo')}
@@ -492,7 +498,9 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                 sx={{ 
                   cursor: 'pointer', 
                   fontWeight: 'bold',
-                  ...densityStyles
+                  ...densityStyles,
+                  // 楽曲名カラムを柔軟に設定
+                  minWidth: '120px'
                 }}
               >
                 楽曲名{renderSortIcon('name')}
@@ -503,7 +511,8 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   sx={{ 
                     cursor: 'pointer', 
                     fontWeight: 'bold',
-                    ...densityStyles
+                    ...densityStyles,
+                    minWidth: '80px'
                   }}
                 >
                   アーティスト{renderSortIcon('artist')}
@@ -515,7 +524,8 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   sx={{ 
                     cursor: 'pointer', 
                     fontWeight: 'bold',
-                    ...densityStyles
+                    ...densityStyles,
+                    minWidth: '60px'
                   }}
                 >
                   作詞{renderSortIcon('lyricist')}
@@ -527,7 +537,8 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   sx={{ 
                     cursor: 'pointer', 
                     fontWeight: 'bold',
-                    ...densityStyles
+                    ...densityStyles,
+                    minWidth: '60px'
                   }}
                 >
                   作曲{renderSortIcon('composer')}
@@ -539,7 +550,8 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   sx={{ 
                     cursor: 'pointer', 
                     fontWeight: 'bold',
-                    ...densityStyles
+                    ...densityStyles,
+                    minWidth: '60px'
                   }}
                 >
                   編曲{renderSortIcon('arranger')}
@@ -552,11 +564,12 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                     cursor: 'pointer', 
                     fontWeight: 'bold',
                     ...densityStyles,
-                    width: '90px'
+                    width: '50px',
+                    minWidth: '50px'
                   }}
                   align="center"
                 >
-                  再生時間{renderSortIcon('duration')}
+                  時間{renderSortIcon('duration')}
                 </TableCell>
               )}
               {columnVisibility.bpm && (
@@ -566,7 +579,8 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                     cursor: 'pointer', 
                     fontWeight: 'bold',
                     ...densityStyles,
-                    width: '80px'
+                    width: '45px',
+                    minWidth: '45px'
                   }}
                   align="center"
                 >
@@ -579,7 +593,9 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   sx={{ 
                     cursor: 'pointer', 
                     fontWeight: 'bold',
-                    ...densityStyles
+                    ...densityStyles,
+                    width: '70px',
+                    minWidth: '70px'
                   }}
                   align="center"
                 >
@@ -592,7 +608,10 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   align="center"
                   sx={{ 
                     ...densityStyles,
-                    padding: `${densityStyles.padding.split(' ')[0]} 4px`,
+                    padding: '1px 1px',
+                    width: '35px',
+                    minWidth: '35px',
+                    maxWidth: '35px'
                   }}
                 >
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -634,7 +653,9 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                 align="center"
                 sx={{ 
                   ...densityStyles,
-                  width: '60px'
+                  width: '30px',
+                  minWidth: '30px',
+                  maxWidth: '30px'
                 }}
               >
                 詳細
@@ -647,30 +668,72 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                 key={song.id}
                 hover
                 onClick={() => handleSongClick(song.id)}
-                sx={{ cursor: 'pointer' }}
+                sx={{ 
+                  cursor: 'pointer',
+                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' }
+                }}
               >
                 <TableCell sx={densityStyles}>{song.songNo}</TableCell>
-                <TableCell sx={densityStyles}>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                    <MusicNoteIcon sx={{ mr: 1, color: 'primary.main', fontSize: `${Number(densityStyles.fontSize.replace('px', '')) + 2}px` }} />
-                    <Typography sx={{ fontSize: densityStyles.fontSize }}>{song.name}</Typography>
+                <TableCell sx={{
+                  ...densityStyles,
+                  // 楽曲名は複数行にわたって表示
+                  whiteSpace: 'normal',
+                  wordBreak: 'break-word'
+                }}>
+                  <Box sx={{ display: 'flex' }}>
+                    <MusicNoteIcon sx={{ 
+                      mr: 0.5, 
+                      color: 'primary.main', 
+                      fontSize: `${Number(densityStyles.fontSize.replace('px', '')) + 2}px`,
+                      flexShrink: 0
+                    }} />
+                    <Typography sx={{ 
+                      fontSize: densityStyles.fontSize
+                    }}>
+                      {song.name}
+                    </Typography>
                   </Box>
                 </TableCell>
                 
                 {columnVisibility.artist && (
-                  <TableCell sx={densityStyles}>{song.info.artist || ''}</TableCell>
+                  <TableCell sx={{
+                    ...densityStyles,
+                    // 折り返して表示
+                    whiteSpace: 'normal',
+                    wordBreak: 'break-word'
+                  }}>
+                    {song.info.artist || ''}
+                  </TableCell>
                 )}
                 
                 {columnVisibility.lyricist && (
-                  <TableCell sx={densityStyles}>{song.info.lyricist || ''}</TableCell>
+                  <TableCell sx={{
+                    ...densityStyles,
+                    whiteSpace: 'normal',
+                    wordBreak: 'break-word'
+                  }}>
+                    {song.info.lyricist || ''}
+                  </TableCell>
                 )}
                 
                 {columnVisibility.composer && (
-                  <TableCell sx={densityStyles}>{song.info.composer || ''}</TableCell>
+                  <TableCell sx={{
+                    ...densityStyles,
+                    whiteSpace: 'normal',
+                    wordBreak: 'break-word'
+                  }}>
+                    {song.info.composer || ''}
+                  </TableCell>
                 )}
                 
                 {columnVisibility.arranger && (
-                  <TableCell sx={densityStyles}>{song.info.arranger || ''}</TableCell>
+                  <TableCell sx={{
+                    ...densityStyles,
+                    whiteSpace: 'normal',
+                    wordBreak: 'break-word'
+                  }}>
+                    {song.info.arranger || ''}
+                  </TableCell>
                 )}
                 
                 {columnVisibility.duration && (
@@ -695,11 +758,11 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                       align="center"
                       sx={{ 
                         ...densityStyles,
-                        padding: `${densityStyles.padding.split(' ')[0]} 2px`,
+                        padding: '0px',
                       }}
                     >
                       {diffInfo && diffInfo.level ? (
-                        <Stack spacing={0.5} alignItems="center">
+                        <Stack spacing={0} alignItems="center">
                           <Chip
                             label={diffInfo.level}
                             size="small"
@@ -707,9 +770,9 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                               bgcolor: diff.color,
                               color: 'white',
                               fontWeight: 'bold',
-                              height: `${Number(densityStyles.fontSize.replace('px', '')) + 4}px`,
+                              height: `${Number(densityStyles.fontSize.replace('px', '')) + 2}px`,
                               '& .MuiChip-label': {
-                                px: 1,
+                                px: 0.5,
                                 fontSize: `${Number(densityStyles.fontSize.replace('px', '')) - 1}px`
                               }
                             }}
@@ -719,28 +782,27 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                           <Typography 
                             sx={{ 
                               color: 'text.secondary',
-                              fontSize: `${Number(densityStyles.fontSize.replace('px', '')) - 2}px`
+                              fontSize: `${Number(densityStyles.fontSize.replace('px', '')) - 2}px`,
+                              lineHeight: 1
                             }}
                           >
                             {diffInfo.combo || '-'}
                           </Typography>
                           
                           {diffInfo.youtubeUrl && (
-                            <Tooltip title="YouTubeで視聴">
-                              <IconButton
-                                size="small"
-                                color="error"
-                                onClick={(e) => handleYouTubeClick(e, diffInfo.youtubeUrl)}
-                                sx={{ 
-                                  p: 0.5,
-                                  '& .MuiSvgIcon-root': {
-                                    fontSize: `${Number(densityStyles.fontSize.replace('px', '')) + 2}px`
-                                  }
-                                }}
-                              >
-                                <YouTubeIcon fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
+                            <IconButton
+                              size="small"
+                              color="error"
+                              onClick={(e) => handleYouTubeClick(e, diffInfo.youtubeUrl)}
+                              sx={{ 
+                                p: 0,
+                                '& .MuiSvgIcon-root': {
+                                  fontSize: `${Number(densityStyles.fontSize.replace('px', '')) + 1}px`
+                                }
+                              }}
+                            >
+                              <YouTubeIcon fontSize="small" />
+                            </IconButton>
                           )}
                         </Stack>
                       ) : (
@@ -751,20 +813,18 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                 })}
                 
                 <TableCell align="center" sx={densityStyles}>
-                  <Tooltip title="詳細を表示">
-                    <IconButton 
-                      size="small" 
-                      color="primary"
-                      sx={{ 
-                        p: 0.5,
-                        '& .MuiSvgIcon-root': {
-                          fontSize: `${Number(densityStyles.fontSize.replace('px', '')) + 2}px`
-                        }
-                      }}
-                    >
-                      <InfoOutlinedIcon />
-                    </IconButton>
-                  </Tooltip>
+                  <IconButton 
+                    size="small" 
+                    color="primary"
+                    sx={{ 
+                      p: 0,
+                      '& .MuiSvgIcon-root': {
+                        fontSize: `${Number(densityStyles.fontSize.replace('px', '')) + 1}px`
+                      }
+                    }}
+                  >
+                    <InfoOutlinedIcon />
+                  </IconButton>
                 </TableCell>
               </TableRow>
             ))}
@@ -772,7 +832,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
         </Table>
       </TableContainer>
       
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
         <Pagination 
           count={Math.ceil(filteredSongs.length / rowsPerPage)} 
           page={page}
@@ -780,6 +840,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
           color="primary"
           showFirstButton
           showLastButton
+          size="small"
         />
       </Box>
     </>

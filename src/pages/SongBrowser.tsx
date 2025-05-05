@@ -1,5 +1,5 @@
-// src/pages/SongBrowser.tsx
-import React, { useState, useEffect } from 'react';
+// src/pages/SongBrowser.tsx の修正版
+import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Container, Typography, Box, CircularProgress, Alert
@@ -27,32 +27,62 @@ const SongBrowser: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
   
+  // URLから初期化する状態を追跡
+  const initializedFromUrl = useRef(false);
+  // URL更新中であることを追跡するフラグ
+  const isUpdatingUrl = useRef(false);
+  
   // 現在選択中のゲーム
   const selectedGame: Game | null = selectedGameId 
     ? games.find(g => g.id === selectedGameId) || null 
     : null;
   
-  // Handle URL query params for game selection
+  // Handle URL query params for game selection - ONLY ON INITIAL LOAD
   useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const gameParam = params.get('game');
-    
-    if (gameParam && games.some(g => g.id === gameParam)) {
-      selectGame(gameParam);
-    }
-  }, [location, games, selectGame]);
-  
-  // Update URL when game changes
-  useEffect(() => {
-    if (selectedGameId) {
+    // まだURLから初期化していない場合のみ実行
+    if (!initializedFromUrl.current && games.length > 0) {
       const params = new URLSearchParams(location.search);
-      params.set('game', selectedGameId);
-      navigate({ search: params.toString() }, { replace: true });
+      const gameParam = params.get('game');
+      
+      if (gameParam && games.some(g => g.id === gameParam)) {
+        // URLからゲームを選択
+        selectGame(gameParam);
+      } else if (games.length > 0 && !selectedGameId) {
+        // ゲームが選択されていない場合、最初のゲームを選択
+        selectGame(games[0].id);
+      }
+      
+      // 初期化済みとマーク
+      initializedFromUrl.current = true;
+    }
+  }, [location, games, selectGame, selectedGameId]);
+  
+  // Update URL when game changes - PREVENT LOOPS
+  useEffect(() => {
+    // ゲームIDが選択され、URL更新中でない場合のみ実行
+    if (selectedGameId && !isUpdatingUrl.current && initializedFromUrl.current) {
+      isUpdatingUrl.current = true; // URL更新中フラグをセット
+      
+      const params = new URLSearchParams(location.search);
+      const currentGameParam = params.get('game');
+      
+      // 現在のURLパラメータと異なる場合のみ更新
+      if (currentGameParam !== selectedGameId) {
+        params.set('game', selectedGameId);
+        navigate({ search: params.toString() }, { replace: true });
+      }
+      
+      // 少し遅延してフラグをリセット（非同期処理の競合を防止）
+      setTimeout(() => {
+        isUpdatingUrl.current = false;
+      }, 50);
     }
   }, [selectedGameId, navigate, location]);
   
   const handleGameSelect = (gameId: string) => {
-    selectGame(gameId);
+    if (gameId !== selectedGameId) {
+      selectGame(gameId);
+    }
   };
   
   const handleFilterChange = (newFilters: FilterOptions) => {
