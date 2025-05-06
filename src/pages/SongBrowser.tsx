@@ -3,9 +3,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Container, Typography, Box, CircularProgress, Alert,
-  Paper, Button, Tooltip
+  Paper, Button, Tooltip, Snackbar
 } from '@mui/material';
 import DownloadIcon from '@mui/icons-material/Download';
+import LockIcon from '@mui/icons-material/Lock';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
 import ResponsiveLayout from '../components/layout/ResponsiveLayout';
@@ -15,11 +16,17 @@ import FilterControls, { FilterOptions } from '../components/user/FilterControls
 import SongList from '../components/user/SongList';
 import ExportDialog from '../components/user/ExportDialog';
 import { useSongData } from '../contexts/SongDataContext';
+import { useAuth } from '../contexts/AuthContext'; // Import auth context
 import { Game } from '../types/Game';
 import ErrorBoundary from '../components/common/ErrorBoundary';
+import AdComponent from '../components/ads/AdComponent'; // Import ad component
+import { useAds } from '../contexts/AdContext'; // Import ad context
 
 const SongBrowser: React.FC = () => {
   const { games, selectedGameId, songs, loading, error, selectGame } = useSongData();
+  const { isPremium, isAdmin, currentUser } = useAuth(); // Get user premium status
+  const { showAds } = useAds(); // Get ad display status
+  
   const [filteredSongs, setFilteredSongs] = useState(songs);
   const [filters, setFilters] = useState<FilterOptions>({
     searchText: '',
@@ -32,6 +39,9 @@ const SongBrowser: React.FC = () => {
   
   // Export dialog state
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
+  
+  // Access denied snackbar state
+  const [showAccessDenied, setShowAccessDenied] = useState(false);
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -161,9 +171,19 @@ const SongBrowser: React.FC = () => {
     setFilters(newFilters);
   };
   
-  // Handle export button click
+  // Handle export button click with permission check
   const handleExportClick = () => {
-    setExportDialogOpen(true);
+    if (isPremium || isAdmin) {
+      setExportDialogOpen(true);
+    } else {
+      // Show access denied message and prompt for membership
+      setShowAccessDenied(true);
+    }
+  };
+  
+  // Handle membership upgrade click
+  const handleUpgradeClick = () => {
+    navigate('/membership');
   };
   
   return (
@@ -174,6 +194,9 @@ const SongBrowser: React.FC = () => {
       />
       <Header />
       <ResponsiveLayout>
+        {/* Top Ad Banner - only for non-premium users */}
+        {showAds && <AdComponent size="banner" position="top" />}
+        
         <Container maxWidth="lg">
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
             <Typography variant="h5" component="h1">
@@ -205,15 +228,22 @@ const SongBrowser: React.FC = () => {
                   game={selectedGame}
                 />
                 
-                {/* Export Button */}
+                {/* Inline Ad - only for non-premium users */}
+                {showAds && <AdComponent size="banner" position="inline" />}
+                
+                {/* Export Button - modified with premium check */}
                 {filteredSongs.length > 0 && (
                   <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
-                    <Tooltip title="表示中の楽曲をエクスポート">
+                    <Tooltip title={
+                      isPremium || isAdmin
+                        ? "表示中の楽曲をエクスポート"
+                        : "プレミアム会員限定機能"
+                    }>
                       <Button
                         variant="outlined"
                         color="primary"
                         size="small"
-                        startIcon={<DownloadIcon />}
+                        startIcon={isPremium || isAdmin ? <DownloadIcon /> : <LockIcon />}
                         onClick={handleExportClick}
                       >
                         エクスポート ({filteredSongs.length}曲)
@@ -228,18 +258,40 @@ const SongBrowser: React.FC = () => {
                   game={selectedGame}
                 />
                 
-                {/* Export Dialog */}
-                <ExportDialog 
-                  open={exportDialogOpen}
-                  onClose={() => setExportDialogOpen(false)}
-                  songs={filteredSongs}
-                  game={selectedGame}
-                  filteredCount={filteredSongs.length}
+                {/* Export Dialog - only shown for premium users */}
+                {(isPremium || isAdmin) && (
+                  <ExportDialog 
+                    open={exportDialogOpen}
+                    onClose={() => setExportDialogOpen(false)}
+                    songs={filteredSongs}
+                    game={selectedGame}
+                    filteredCount={filteredSongs.length}
+                  />
+                )}
+                
+                {/* Access Denied Snackbar */}
+                <Snackbar
+                  open={showAccessDenied}
+                  autoHideDuration={6000}
+                  onClose={() => setShowAccessDenied(false)}
+                  message="この機能はプレミアム会員限定です"
+                  action={
+                    <Button 
+                      color="secondary" 
+                      size="small" 
+                      onClick={handleUpgradeClick}
+                    >
+                      アップグレード
+                    </Button>
+                  }
                 />
               </>
             )}
           </ErrorBoundary>
         </Container>
+        
+        {/* Bottom Ad Banner - only for non-premium users */}
+        {showAds && <AdComponent size="banner" position="bottom" />}
       </ResponsiveLayout>
       <Footer />
     </>

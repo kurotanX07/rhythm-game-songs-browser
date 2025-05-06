@@ -5,7 +5,7 @@ import {
   AppBar, Toolbar, Typography, Button, IconButton,
   Box, Menu, MenuItem, Avatar, Drawer, List, ListItem,
   ListItemIcon, ListItemText, Divider, useMediaQuery,
-  Tooltip
+  Tooltip, Badge, Chip
 } from '@mui/material';
 import { useTheme as useMuiTheme } from '@mui/material/styles';
 import MenuIcon from '@mui/icons-material/Menu';
@@ -16,11 +16,12 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import LogoutIcon from '@mui/icons-material/Logout';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
+import WorkspacePremiumIcon from '@mui/icons-material/WorkspacePremium';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 
 const Header: React.FC = () => {
-  const { currentUser, isAdmin, signOut } = useAuth();
+  const { currentUser, isAdmin, isPremium, signOut } = useAuth();
   const navigate = useNavigate();
   const muiTheme = useMuiTheme();
   const { mode, toggleColorMode } = useTheme();
@@ -122,6 +123,43 @@ const Header: React.FC = () => {
                 管理画面
               </Button>
             )}
+            
+            {/* Membership button - visible to all users */}
+            <Button 
+              color="inherit" 
+              component={RouterLink} 
+              to="/membership"
+              startIcon={<WorkspacePremiumIcon />}
+              sx={{ 
+                position: 'relative',
+                '&::after': isPremium ? {
+                  content: '""',
+                  position: 'absolute',
+                  bottom: 6,
+                  left: 0,
+                  right: 0,
+                  height: 2,
+                  backgroundColor: 'secondary.main',
+                  borderRadius: 1
+                } : {}
+              }}
+            >
+              会員プラン
+              {isPremium && !isAdmin && (
+                <Chip 
+                  label="プレミアム" 
+                  size="small" 
+                  color="secondary"
+                  sx={{ 
+                    ml: 1, 
+                    height: 18, 
+                    fontSize: '0.6rem', 
+                    fontWeight: 'bold',
+                    '& .MuiChip-label': { px: 0.5 }
+                  }}
+                />
+              )}
+            </Button>
           </Box>
         )}
         
@@ -154,13 +192,31 @@ const Header: React.FC = () => {
                 padding: isMobile ? '4px' : '8px',
               }}
             >
-              <Avatar 
-                alt={currentUser.displayName || undefined} 
-                src={currentUser.photoURL || undefined}
-                sx={{ width: isMobile ? 28 : 32, height: isMobile ? 28 : 32 }}
+              <Badge
+                overlap="circular"
+                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+                badgeContent={
+                  isPremium && !isAdmin ? (
+                    <Box
+                      sx={{
+                        width: 12,
+                        height: 12,
+                        borderRadius: '50%',
+                        backgroundColor: 'secondary.main',
+                        border: `2px solid ${muiTheme.palette.primary.main}`,
+                      }}
+                    />
+                  ) : null
+                }
               >
-                {!currentUser.photoURL && ((currentUser.displayName || currentUser.email || 'U')[0].toUpperCase())}
-              </Avatar>
+                <Avatar 
+                  alt={currentUser.displayName || undefined} 
+                  src={currentUser.photoURL || undefined}
+                  sx={{ width: isMobile ? 28 : 32, height: isMobile ? 28 : 32 }}
+                >
+                  {!currentUser.photoURL && ((currentUser.displayName || currentUser.email || 'U')[0].toUpperCase())}
+                </Avatar>
+              </Badge>
             </IconButton>
             <Menu
               id="menu-appbar"
@@ -177,13 +233,37 @@ const Header: React.FC = () => {
               open={Boolean(anchorEl)}
               onClose={handleClose}
             >
-              <MenuItem onClick={handleClose}>
-                <ListItemIcon>
-                  <AccountCircleIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText primary={currentUser.email} />
+              <MenuItem disabled>
+                <ListItemText 
+                  primary={currentUser.email}
+                  secondary={
+                    isAdmin ? '管理者' : (isPremium ? 'プレミアム会員' : '無料会員')
+                  }
+                />
               </MenuItem>
+              
+              {/* Only show membership option for non-admin users */}
+              {!isAdmin && (
+                <MenuItem 
+                  onClick={() => {
+                    handleClose();
+                    navigate('/membership');
+                  }}
+                >
+                  <ListItemIcon>
+                    <WorkspacePremiumIcon 
+                      fontSize="small"
+                      color={isPremium ? "secondary" : "inherit"}
+                    />
+                  </ListItemIcon>
+                  <ListItemText 
+                    primary={isPremium ? "会員ステータス" : "プレミアム会員になる"}
+                  />
+                </MenuItem>
+              )}
+              
               <Divider />
+              
               <MenuItem onClick={handleLogout}>
                 <ListItemIcon>
                   <LogoutIcon fontSize="small" />
@@ -231,6 +311,17 @@ const Header: React.FC = () => {
                 <ListItemText primary="管理画面" />
               </ListItem>
             )}
+            
+            {/* Add membership to drawer */}
+            <ListItem button component={RouterLink} to="/membership" sx={{ py: 2 }}>
+              <ListItemIcon>
+                <WorkspacePremiumIcon color={isPremium ? "secondary" : "inherit"} />
+              </ListItemIcon>
+              <ListItemText 
+                primary="会員プラン"
+                secondary={isPremium && !isAdmin ? "プレミアム会員" : null}
+              />
+            </ListItem>
           </List>
           <Divider />
           
@@ -249,6 +340,7 @@ const Header: React.FC = () => {
                 <ListItemIcon><AccountCircleIcon /></ListItemIcon>
                 <ListItemText 
                   primary={currentUser.displayName || currentUser.email}
+                  secondary={isAdmin ? '管理者' : (isPremium ? 'プレミアム会員' : '無料会員')}
                   primaryTypographyProps={{ noWrap: true }} 
                 />
               </ListItem>
