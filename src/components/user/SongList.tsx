@@ -5,7 +5,8 @@ import {
   Box, Typography, Chip, Grid, Table, TableBody, TableCell, 
   TableContainer, TableHead, TableRow, Paper, Tooltip, 
   IconButton, Pagination, FormControl, InputLabel, Select, 
-  MenuItem, SelectChangeEvent, Stack, Slider, Switch, FormControlLabel
+  MenuItem, SelectChangeEvent, Stack, Slider, Switch, FormControlLabel,
+  useMediaQuery, useTheme as useMuiTheme
 } from '@mui/material';
 import YouTubeIcon from '@mui/icons-material/YouTube';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
@@ -50,6 +51,8 @@ const SongList: React.FC<SongListProps> = ({
 }) => {
   const navigate = useNavigate();
   const { favorites, toggleFavorite, isFavorite } = useFavorites();
+  const theme = useMuiTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
   // Pagination state
   const [page, setPage] = useState(1);
@@ -425,13 +428,41 @@ const SongList: React.FC<SongListProps> = ({
   
   return (
     <>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-        <Typography variant="body2">
+      {/* Improved top section with more space */}
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'space-between', 
+        alignItems: 'center', 
+        mb: isMobile ? 2 : 3,
+        mt: isMobile ? 1 : 2,
+        flexWrap: 'wrap',
+        gap: 1.5
+      }}>
+        <Typography variant="body1" sx={{ 
+          fontWeight: 'medium',
+          fontSize: isMobile ? '0.9rem' : '1rem'
+        }}>
           {filteredSongs.length}曲中 {(page - 1) * rowsPerPage + 1}-{Math.min(page * rowsPerPage, filteredSongs.length)}曲目を表示
         </Typography>
         
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <FormControl variant="outlined" size="small" sx={{ minWidth: 120, mr: 2 }}>
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center',
+          gap: 2,
+          flexWrap: isMobile ? 'wrap' : 'nowrap',
+          justifyContent: isMobile ? 'flex-end' : 'flex-start',
+          width: isMobile ? '100%' : 'auto'
+        }}>
+          <FormControl variant="outlined" size="small" sx={{ 
+            minWidth: isMobile ? '120px' : '150px',
+            '& .MuiInputLabel-root': {
+              fontSize: isMobile ? '0.8rem' : '0.9rem'
+            },
+            '& .MuiSelect-select': {
+              fontSize: isMobile ? '0.8rem' : '0.9rem',
+              padding: isMobile ? '8px 10px' : '10px 14px'
+            }
+          }}>
             <InputLabel id="rows-per-page-label">表示件数</InputLabel>
             <Select
               labelId="rows-per-page-label"
@@ -453,37 +484,95 @@ const SongList: React.FC<SongListProps> = ({
             color="primary"
             showFirstButton
             showLastButton
-            size="small"
+            size={isMobile ? "small" : "medium"}
+            sx={{
+              '& .MuiPaginationItem-root': {
+                minWidth: isMobile ? '30px' : '36px',
+                height: isMobile ? '30px' : '36px',
+                fontSize: isMobile ? '0.8rem' : '0.9rem'
+              }
+            }}
           />
         </Box>
       </Box>
       
-      {/* Display Settings */}
-      <Paper sx={{ p: 1, mb: 1 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap' }}>
-          <Box sx={{ display: 'flex', alignItems: 'center', mr: 2 }}>
-            <IconButton onClick={toggleColumnSettings} color={showColumnSettings ? "primary" : "default"} size="small">
-              <ViewColumnIcon />
+      {/* Display Settings - Improved spacing */}
+      <Paper sx={{ 
+        p: isMobile ? 1.5 : 2, 
+        mb: 2, 
+        borderRadius: 2,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+      }}>
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center', 
+          flexWrap: 'wrap',
+          gap: 2
+        }}>
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            mr: 2,
+            p: 1,
+            borderRadius: 1,
+            '&:hover': {
+              bgcolor: 'action.hover'
+            }
+          }}>
+            <IconButton 
+              onClick={toggleColumnSettings} 
+              color={showColumnSettings ? "primary" : "default"} 
+              size="small"
+              sx={{
+                p: isMobile ? 0.75 : 1
+              }}
+            >
+              <ViewColumnIcon sx={{ fontSize: isMobile ? '1.3rem' : '1.5rem' }} />
             </IconButton>
-            <Typography variant="body2" sx={{ ml: 1, fontSize: isMobile ? '0.75rem' : '0.875rem' }}>
+            <Typography variant="body1" sx={{ 
+              ml: 1, 
+              fontSize: isMobile ? '0.8rem' : '0.9rem',
+              fontWeight: 'medium'
+            }}>
               表示項目
             </Typography>
           </Box>
           
-          {/* 文字サイズ調整バーをモバイルで使いやすく */}
+          {/* MODIFIED: Font size adjustment slider - Made wider and more touch-friendly */}
           <Box sx={{ 
             display: 'flex', 
             alignItems: 'center', 
             flexGrow: 1, 
-            maxWidth: isMobile ? '100%' : 400,
+            width: '100%',
             mt: isMobile ? 1 : 0, 
-            width: isMobile ? '100%' : 'auto',
-            order: isMobile ? 3 : 2
+            mb: isMobile ? 1 : 0,
+            order: isMobile ? 3 : 2,
+            px: 2,
+            py: 1,
+            borderRadius: 1,
+            bgcolor: 'background.default'
           }}>
-            <FormatSizeIcon sx={{ mr: 1, color: 'text.secondary', fontSize: isMobile ? '1rem' : '16px' }} />
-            <Typography variant="body2" sx={{ mr: 1, minWidth: 70, fontSize: isMobile ? '0.75rem' : '0.875rem' }}>
-              文字サイズ:
-            </Typography>
+            <Box sx={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              minWidth: isMobile ? '85px' : '120px',
+              mr: 2
+            }}>
+              <FormatSizeIcon sx={{ 
+                mr: 1.5, 
+                color: 'primary.main', 
+                fontSize: isMobile ? '1.3rem' : '1.5rem' 
+              }} />
+              <Typography variant="body1" sx={{ 
+                fontSize: isMobile ? '0.8rem' : '0.9rem',
+                fontWeight: 'medium'
+              }}>
+                文字サイズ:
+              </Typography>
+            </Box>
+            
+            {/* Improved slider with more width */}
             <Slider
               value={fontSize}
               onChange={handleFontSizeChange}
@@ -492,17 +581,38 @@ const SongList: React.FC<SongListProps> = ({
               step={1}
               valueLabelDisplay="auto"
               sx={{ 
-                maxWidth: isMobile ? '100%' : 200,
+                flex: 1,  /* Take all available space */
+                minWidth: isMobile ? '200px' : '250px',
                 '& .MuiSlider-thumb': {
-                  width: isMobile ? 20 : 16,
-                  height: isMobile ? 20 : 16,
+                  width: isMobile ? 24 : 20,
+                  height: isMobile ? 24 : 20,
                 },
                 '& .MuiSlider-rail, & .MuiSlider-track': {
-                  height: isMobile ? 4 : 2,
+                  height: isMobile ? 6 : 4,
+                },
+                '& .MuiSlider-valueLabel': {
+                  fontSize: '0.9rem',
+                  padding: '2px 6px',
+                  fontWeight: 'bold'
                 }
               }}
-              size="small"
             />
+            
+            {/* Current font size display */}
+            <Typography variant="body1" sx={{ 
+              ml: 2, 
+              minWidth: '40px', 
+              textAlign: 'center',
+              fontSize: '1rem',
+              fontWeight: 'bold',
+              color: 'primary.main',
+              bgcolor: 'action.selected',
+              px: 1,
+              py: 0.5,
+              borderRadius: 1
+            }}>
+              {fontSize}px
+            </Typography>
           </Box>
           
           <FormControl size="small" sx={{ 
@@ -510,10 +620,10 @@ const SongList: React.FC<SongListProps> = ({
             mt: isMobile ? 1 : 0,
             order: isMobile ? 2 : 3,
             '& .MuiInputLabel-root': {
-              fontSize: isMobile ? '0.75rem' : '0.875rem'
+              fontSize: isMobile ? '0.8rem' : '0.9rem'
             },
             '& .MuiSelect-select': {
-              fontSize: isMobile ? '0.75rem' : '0.875rem'
+              fontSize: isMobile ? '0.8rem' : '0.9rem'
             }
           }}>
             <InputLabel id="density-select-label">表示密度</InputLabel>
@@ -523,55 +633,105 @@ const SongList: React.FC<SongListProps> = ({
               onChange={handleDensityChange}
               label="表示密度"
             >
-              <MenuItem value="compact" sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}>コンパクト</MenuItem>
-              <MenuItem value="comfortable" sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}>標準</MenuItem>
-              <MenuItem value="spacious" sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}>広め</MenuItem>
-              <MenuItem value="very-spacious" sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}>さらに広め</MenuItem>
+              <MenuItem value="compact" sx={{ fontSize: isMobile ? '0.8rem' : '0.9rem' }}>コンパクト</MenuItem>
+              <MenuItem value="comfortable" sx={{ fontSize: isMobile ? '0.8rem' : '0.9rem' }}>標準</MenuItem>
+              <MenuItem value="spacious" sx={{ fontSize: isMobile ? '0.8rem' : '0.9rem' }}>広め</MenuItem>
+              <MenuItem value="very-spacious" sx={{ fontSize: isMobile ? '0.8rem' : '0.9rem' }}>さらに広め</MenuItem>
             </Select>
           </FormControl>
         </Box>
         
-        {/* Column Settings Panel (同じ) */}
+        {/* Column Settings Panel - Improved UI */}
         {showColumnSettings && (
-          <Box sx={{ mt: 1, p: 1, borderTop: 1, borderColor: 'divider' }}>
-            <Typography variant="body2" gutterBottom sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}>
+          <Box sx={{ 
+            mt: 2, 
+            p: 2, 
+            borderTop: 1, 
+            borderColor: 'divider',
+            borderRadius: '0 0 8px 8px',
+            bgcolor: 'background.default'
+          }}>
+            <Typography variant="body1" gutterBottom sx={{ 
+              fontSize: isMobile ? '0.8rem' : '0.9rem',
+              fontWeight: 'medium',
+              mb: 1.5
+            }}>
               表示する項目を選択:
             </Typography>
-            <Box sx={{ display: 'flex', flexWrap: 'wrap' }}>
+            <Box sx={{ 
+              display: 'flex', 
+              flexWrap: 'wrap',
+              gap: 2
+            }}>
               <FormControlLabel
                 control={<Switch size="small" checked={columnVisibility.artist} onChange={() => handleColumnChange('artist')} />}
                 label="アーティスト"
-                sx={{ mr: 2, '& .MuiFormControlLabel-label': { fontSize: isMobile ? '0.75rem' : '0.875rem' } }}
+                sx={{ 
+                  '& .MuiFormControlLabel-label': { 
+                    fontSize: isMobile ? '0.8rem' : '0.9rem' 
+                  },
+                  minWidth: '130px'
+                }}
               />
               <FormControlLabel
                 control={<Switch size="small" checked={columnVisibility.lyricist} onChange={() => handleColumnChange('lyricist')} />}
                 label="作詞"
-                sx={{ mr: 2, '& .MuiFormControlLabel-label': { fontSize: isMobile ? '0.75rem' : '0.875rem' } }}
+                sx={{ 
+                  '& .MuiFormControlLabel-label': { 
+                    fontSize: isMobile ? '0.8rem' : '0.9rem' 
+                  },
+                  minWidth: '100px'
+                }}
               />
               <FormControlLabel
                 control={<Switch size="small" checked={columnVisibility.composer} onChange={() => handleColumnChange('composer')} />}
                 label="作曲"
-                sx={{ mr: 2, '& .MuiFormControlLabel-label': { fontSize: isMobile ? '0.75rem' : '0.875rem' } }}
+                sx={{ 
+                  '& .MuiFormControlLabel-label': { 
+                    fontSize: isMobile ? '0.8rem' : '0.9rem' 
+                  },
+                  minWidth: '100px'
+                }}
               />
               <FormControlLabel
                 control={<Switch size="small" checked={columnVisibility.arranger} onChange={() => handleColumnChange('arranger')} />}
                 label="編曲"
-                sx={{ mr: 2, '& .MuiFormControlLabel-label': { fontSize: isMobile ? '0.75rem' : '0.875rem' } }}
+                sx={{ 
+                  '& .MuiFormControlLabel-label': { 
+                    fontSize: isMobile ? '0.8rem' : '0.9rem' 
+                  },
+                  minWidth: '100px'
+                }}
               />
               <FormControlLabel
                 control={<Switch size="small" checked={columnVisibility.duration} onChange={() => handleColumnChange('duration')} />}
                 label="再生時間"
-                sx={{ mr: 2, '& .MuiFormControlLabel-label': { fontSize: isMobile ? '0.75rem' : '0.875rem' } }}
+                sx={{ 
+                  '& .MuiFormControlLabel-label': { 
+                    fontSize: isMobile ? '0.8rem' : '0.9rem' 
+                  },
+                  minWidth: '130px'
+                }}
               />
               <FormControlLabel
                 control={<Switch size="small" checked={columnVisibility.bpm} onChange={() => handleColumnChange('bpm')} />}
                 label="BPM"
-                sx={{ mr: 2, '& .MuiFormControlLabel-label': { fontSize: isMobile ? '0.75rem' : '0.875rem' } }}
+                sx={{ 
+                  '& .MuiFormControlLabel-label': { 
+                    fontSize: isMobile ? '0.8rem' : '0.9rem' 
+                  },
+                  minWidth: '100px'
+                }}
               />
               <FormControlLabel
                 control={<Switch size="small" checked={columnVisibility.addedDate} onChange={() => handleColumnChange('addedDate')} />}
                 label="追加日"
-                sx={{ mr: 2, '& .MuiFormControlLabel-label': { fontSize: isMobile ? '0.75rem' : '0.875rem' } }}
+                sx={{ 
+                  '& .MuiFormControlLabel-label': { 
+                    fontSize: isMobile ? '0.8rem' : '0.9rem' 
+                  },
+                  minWidth: '100px'
+                }}
               />
             </Box>
           </Box>
@@ -579,10 +739,14 @@ const SongList: React.FC<SongListProps> = ({
       </Paper>
       
       {/* Table with song data */}
-      <TableContainer component={Paper}>
+      <TableContainer component={Paper} sx={{ 
+        borderRadius: 2,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+        overflow: 'hidden'
+      }}>
         <Table size="small" aria-label="song table">
           <TableHead>
-            <TableRow>
+            <TableRow sx={{ bgcolor: 'background.default' }}>
               <TableCell 
                 onClick={() => handleSortChange('songNo')}
                 sx={{ 
@@ -591,7 +755,9 @@ const SongList: React.FC<SongListProps> = ({
                   ...densityStyles,
                   width: '30px',
                   minWidth: '30px',
-                  maxWidth: '30px'
+                  maxWidth: '30px',
+                  borderBottom: 2,
+                  borderColor: 'divider'
                 }}
               >
                 No.{renderSortIcon('songNo')}
@@ -602,7 +768,9 @@ const SongList: React.FC<SongListProps> = ({
                   cursor: 'pointer', 
                   fontWeight: 'bold',
                   ...densityStyles,
-                  minWidth: '120px'
+                  minWidth: '120px',
+                  borderBottom: 2,
+                  borderColor: 'divider'
                 }}
               >
                 楽曲名{renderSortIcon('name')}
@@ -615,7 +783,9 @@ const SongList: React.FC<SongListProps> = ({
                     cursor: 'pointer', 
                     fontWeight: 'bold',
                     ...densityStyles,
-                    minWidth: '80px'
+                    minWidth: '80px',
+                    borderBottom: 2,
+                    borderColor: 'divider'
                   }}
                 >
                   アーティスト{renderSortIcon('artist')}
@@ -629,7 +799,9 @@ const SongList: React.FC<SongListProps> = ({
                     cursor: 'pointer', 
                     fontWeight: 'bold',
                     ...densityStyles,
-                    minWidth: '60px'
+                    minWidth: '60px',
+                    borderBottom: 2,
+                    borderColor: 'divider'
                   }}
                 >
                   作詞{renderSortIcon('lyricist')}
@@ -643,7 +815,9 @@ const SongList: React.FC<SongListProps> = ({
                     cursor: 'pointer', 
                     fontWeight: 'bold',
                     ...densityStyles,
-                    minWidth: '60px'
+                    minWidth: '60px',
+                    borderBottom: 2,
+                    borderColor: 'divider'
                   }}
                 >
                   作曲{renderSortIcon('composer')}
@@ -657,7 +831,9 @@ const SongList: React.FC<SongListProps> = ({
                     cursor: 'pointer', 
                     fontWeight: 'bold',
                     ...densityStyles,
-                    minWidth: '60px'
+                    minWidth: '60px',
+                    borderBottom: 2,
+                    borderColor: 'divider'
                   }}
                 >
                   編曲{renderSortIcon('arranger')}
@@ -672,7 +848,9 @@ const SongList: React.FC<SongListProps> = ({
                     fontWeight: 'bold',
                     ...densityStyles,
                     width: '50px',
-                    minWidth: '50px'
+                    minWidth: '50px',
+                    borderBottom: 2,
+                    borderColor: 'divider'
                   }}
                   align="center"
                 >
@@ -688,7 +866,9 @@ const SongList: React.FC<SongListProps> = ({
                     fontWeight: 'bold',
                     ...densityStyles,
                     width: '45px',
-                    minWidth: '45px'
+                    minWidth: '45px',
+                    borderBottom: 2,
+                    borderColor: 'divider'
                   }}
                   align="center"
                 >
@@ -704,7 +884,9 @@ const SongList: React.FC<SongListProps> = ({
                     fontWeight: 'bold',
                     ...densityStyles,
                     width: '70px',
-                    minWidth: '70px'
+                    minWidth: '70px',
+                    borderBottom: 2,
+                    borderColor: 'divider'
                   }}
                   align="center"
                 >
@@ -722,7 +904,9 @@ const SongList: React.FC<SongListProps> = ({
                     padding: '1px 1px',
                     width: '60px',
                     minWidth: '60px',
-                    maxWidth: '60px'
+                    maxWidth: '60px',
+                    borderBottom: 2,
+                    borderColor: 'divider'
                   }}
                 >
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
@@ -755,7 +939,9 @@ const SongList: React.FC<SongListProps> = ({
                   ...densityStyles,
                   width: '80px',
                   minWidth: '80px',
-                  maxWidth: '80px'
+                  maxWidth: '80px',
+                  borderBottom: 2,
+                  borderColor: 'divider'
                 }}
               >
                 操作
@@ -1000,8 +1186,13 @@ const SongList: React.FC<SongListProps> = ({
         </Table>
       </TableContainer>
       
-      {/* Bottom pagination */}
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
+      {/* Bottom pagination - Improved */}
+      <Box sx={{ 
+        display: 'flex', 
+        justifyContent: 'center', 
+        mt: 3,
+        mb: 2
+      }}>
         <Pagination 
           count={Math.ceil(filteredSongs.length / rowsPerPage)} 
           page={page}
@@ -1009,7 +1200,14 @@ const SongList: React.FC<SongListProps> = ({
           color="primary"
           showFirstButton
           showLastButton
-          size="small"
+          size={isMobile ? "small" : "medium"}
+          sx={{
+            '& .MuiPaginationItem-root': {
+              minWidth: isMobile ? '30px' : '36px',
+              height: isMobile ? '30px' : '36px',
+              fontSize: isMobile ? '0.8rem' : '0.9rem'
+            }
+          }}
         />
       </Box>
     </>
