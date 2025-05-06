@@ -40,7 +40,9 @@
     "cap:android": "npm run build && npx cap sync && npx cap open android",
     "cap:ios": "npm run build && npx cap sync && npx cap open ios",
     "deploy": "npm run build && firebase deploy",
-    "emulators": "firebase emulators:start"
+    "emulators": "firebase emulators:start",
+    "build:android:release": "npm run build && npx cap sync && cd android && ./gradlew assembleRelease",
+    "build:android:bundle": "npm run build && npx cap sync && cd android && ./gradlew bundleRelease"
   },
   "eslintConfig": {
     "extends": [

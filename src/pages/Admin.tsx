@@ -112,7 +112,7 @@ const Admin: React.FC = () => {
     <>
       <SEO
         title="管理画面"
-        description="リズムゲーム楽曲ブラウザの管理画面"
+        description="音ゲー広辞苑の管理画面"
       />
       <Header />
       <ResponsiveLayout>

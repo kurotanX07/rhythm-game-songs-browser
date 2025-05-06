@@ -22,7 +22,7 @@ const Footer: React.FC = () => {
           {new Date().getFullYear()}
           {' '}
           <Link color="inherit" href="/">
-            リズムゲーム楽曲ブラウザ
+            音ゲー広辞苑
           </Link>
           {' - All rights reserved.'}
         </Typography>

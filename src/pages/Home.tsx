@@ -38,7 +38,7 @@ const Home: React.FC = () => {
           >
             <Box sx={{ maxWidth: 'md', mx: 'auto', textAlign: 'center' }}>
               <Typography variant="h3" component="h1" gutterBottom>
-                リズムゲーム楽曲ブラウザ
+                音ゲー広辞苑
               </Typography>
               <Typography variant="h6" paragraph>
                 人気リズムゲームの楽曲情報を簡単に検索・閲覧できるアプリケーションです。
@@ -122,7 +122,7 @@ const Home: React.FC = () => {
                 このアプリについて
               </Typography>
               <Typography paragraph>
-                リズムゲーム楽曲ブラウザは、様々な音楽ゲームの楽曲情報を簡単に検索・閲覧できるアプリケーションです。
+                音ゲー広辞苑は、様々な音楽ゲームの楽曲情報を簡単に検索・閲覧できるアプリケーションです。
                 難易度、BPM、アーティスト情報など、各楽曲の詳細データを提供しています。
               </Typography>
               <Typography paragraph>

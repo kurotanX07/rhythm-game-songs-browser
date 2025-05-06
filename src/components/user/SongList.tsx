@@ -465,14 +465,25 @@ const SongList: React.FC<SongListProps> = ({
             <IconButton onClick={toggleColumnSettings} color={showColumnSettings ? "primary" : "default"} size="small">
               <ViewColumnIcon />
             </IconButton>
-            <Typography variant="body2" sx={{ ml: 1 }}>
+            <Typography variant="body2" sx={{ ml: 1, fontSize: isMobile ? '0.75rem' : '0.875rem' }}>
               表示項目
             </Typography>
           </Box>
           
-          <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1, maxWidth: 400 }}>
-            <FormatSizeIcon sx={{ mr: 1, color: 'text.secondary', fontSize: '16px' }} />
-            <Typography variant="body2" sx={{ mr: 1, minWidth: 70 }}>文字サイズ:</Typography>
+          {/* 文字サイズ調整バーをモバイルで使いやすく */}
+          <Box sx={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            flexGrow: 1, 
+            maxWidth: isMobile ? '100%' : 400,
+            mt: isMobile ? 1 : 0, 
+            width: isMobile ? '100%' : 'auto',
+            order: isMobile ? 3 : 2
+          }}>
+            <FormatSizeIcon sx={{ mr: 1, color: 'text.secondary', fontSize: isMobile ? '1rem' : '16px' }} />
+            <Typography variant="body2" sx={{ mr: 1, minWidth: 70, fontSize: isMobile ? '0.75rem' : '0.875rem' }}>
+              文字サイズ:
+            </Typography>
             <Slider
               value={fontSize}
               onChange={handleFontSizeChange}
@@ -480,12 +491,31 @@ const SongList: React.FC<SongListProps> = ({
               max={16}
               step={1}
               valueLabelDisplay="auto"
-              sx={{ maxWidth: 200 }}
+              sx={{ 
+                maxWidth: isMobile ? '100%' : 200,
+                '& .MuiSlider-thumb': {
+                  width: isMobile ? 20 : 16,
+                  height: isMobile ? 20 : 16,
+                },
+                '& .MuiSlider-rail, & .MuiSlider-track': {
+                  height: isMobile ? 4 : 2,
+                }
+              }}
               size="small"
             />
           </Box>
           
-          <FormControl size="small" sx={{ minWidth: 140 }}>
+          <FormControl size="small" sx={{ 
+            minWidth: 140, 
+            mt: isMobile ? 1 : 0,
+            order: isMobile ? 2 : 3,
+            '& .MuiInputLabel-root': {
+              fontSize: isMobile ? '0.75rem' : '0.875rem'
+            },
+            '& .MuiSelect-select': {
+              fontSize: isMobile ? '0.75rem' : '0.875rem'
+            }
+          }}>
             <InputLabel id="density-select-label">表示密度</InputLabel>
             <Select
               labelId="density-select-label"
@@ -493,53 +523,55 @@ const SongList: React.FC<SongListProps> = ({
               onChange={handleDensityChange}
               label="表示密度"
             >
-              <MenuItem value="compact">コンパクト</MenuItem>
-              <MenuItem value="comfortable">標準</MenuItem>
-              <MenuItem value="spacious">広め</MenuItem>
-              <MenuItem value="very-spacious">さらに広め</MenuItem>
+              <MenuItem value="compact" sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}>コンパクト</MenuItem>
+              <MenuItem value="comfortable" sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}>標準</MenuItem>
+              <MenuItem value="spacious" sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}>広め</MenuItem>
+              <MenuItem value="very-spacious" sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}>さらに広め</MenuItem>
             </Select>
           </FormControl>
         </Box>
         
-        {/* Column Settings Panel */}
+        {/* Column Settings Panel (同じ) */}
         {showColumnSettings && (
           <Box sx={{ mt: 1, p: 1, borderTop: 1, borderColor: 'divider' }}>
-            <Typography variant="body2" gutterBottom>表示する項目を選択:</Typography>
+            <Typography variant="body2" gutterBottom sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}>
+              表示する項目を選択:
+            </Typography>
             <Box sx={{ display: 'flex', flexWrap: 'wrap' }}>
               <FormControlLabel
                 control={<Switch size="small" checked={columnVisibility.artist} onChange={() => handleColumnChange('artist')} />}
                 label="アーティスト"
-                sx={{ mr: 2 }}
+                sx={{ mr: 2, '& .MuiFormControlLabel-label': { fontSize: isMobile ? '0.75rem' : '0.875rem' } }}
               />
               <FormControlLabel
                 control={<Switch size="small" checked={columnVisibility.lyricist} onChange={() => handleColumnChange('lyricist')} />}
                 label="作詞"
-                sx={{ mr: 2 }}
+                sx={{ mr: 2, '& .MuiFormControlLabel-label': { fontSize: isMobile ? '0.75rem' : '0.875rem' } }}
               />
               <FormControlLabel
                 control={<Switch size="small" checked={columnVisibility.composer} onChange={() => handleColumnChange('composer')} />}
                 label="作曲"
-                sx={{ mr: 2 }}
+                sx={{ mr: 2, '& .MuiFormControlLabel-label': { fontSize: isMobile ? '0.75rem' : '0.875rem' } }}
               />
               <FormControlLabel
                 control={<Switch size="small" checked={columnVisibility.arranger} onChange={() => handleColumnChange('arranger')} />}
                 label="編曲"
-                sx={{ mr: 2 }}
+                sx={{ mr: 2, '& .MuiFormControlLabel-label': { fontSize: isMobile ? '0.75rem' : '0.875rem' } }}
               />
               <FormControlLabel
                 control={<Switch size="small" checked={columnVisibility.duration} onChange={() => handleColumnChange('duration')} />}
                 label="再生時間"
-                sx={{ mr: 2 }}
+                sx={{ mr: 2, '& .MuiFormControlLabel-label': { fontSize: isMobile ? '0.75rem' : '0.875rem' } }}
               />
               <FormControlLabel
                 control={<Switch size="small" checked={columnVisibility.bpm} onChange={() => handleColumnChange('bpm')} />}
                 label="BPM"
-                sx={{ mr: 2 }}
+                sx={{ mr: 2, '& .MuiFormControlLabel-label': { fontSize: isMobile ? '0.75rem' : '0.875rem' } }}
               />
               <FormControlLabel
                 control={<Switch size="small" checked={columnVisibility.addedDate} onChange={() => handleColumnChange('addedDate')} />}
                 label="追加日"
-                sx={{ mr: 2 }}
+                sx={{ mr: 2, '& .MuiFormControlLabel-label': { fontSize: isMobile ? '0.75rem' : '0.875rem' } }}
               />
             </Box>
           </Box>

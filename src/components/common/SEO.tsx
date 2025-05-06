@@ -20,7 +20,7 @@ const SEO: React.FC<SEOProps> = ({
   ogType = 'website',
   twitterCard = 'summary'
 }) => {
-  const siteTitle = '音楽リズムゲーム楽曲ブラウザ';
+  const siteTitle = '音ゲー広辞苑';
   const fullTitle = title ? `${title} | ${siteTitle}` : siteTitle;
   
   return (

@@ -1,7 +1,7 @@
 // src/contexts/ThemeContext.tsx
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { ThemeProvider as MuiThemeProvider, createTheme } from '@mui/material/styles';
-import { PaletteMode } from '@mui/material';
+import { PaletteMode, responsiveFontSizes } from '@mui/material';
 
 // Define theme context type
 interface ThemeContextType {
@@ -84,7 +84,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
   
   // Create theme
-  const theme = createTheme({
+  let theme = createTheme({
     palette: {
       mode,
       primary: {
@@ -118,6 +118,24 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         '"Segoe UI Emoji"',
         '"Segoe UI Symbol"',
       ].join(','),
+      // モバイル向けのフォントサイズ調整
+      fontSize: 14,
+      htmlFontSize: 16,
+      h5: {
+        fontSize: '1.25rem', // 元の1.5remから小さく
+      },
+      h6: {
+        fontSize: '1.125rem', // 元の1.25remから小さく
+      },
+      body1: {
+        fontSize: '0.875rem', // 元の1remから小さく
+      },
+      body2: {
+        fontSize: '0.75rem',  // 元の0.875remから小さく
+      },
+      button: {
+        fontSize: '0.8125rem', // 元の0.875remから小さく
+      },
     },
     components: {
       MuiCssBaseline: {
@@ -172,6 +190,11 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         styleOverrides: {
           root: {
             borderRadius: 8,
+            padding: '6px 12px',
+          },
+          sizeSmall: {
+            padding: '4px 8px',
+            fontSize: '0.75rem',
           },
         },
       },
@@ -186,8 +209,45 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
           },
         },
       },
+      // モバイル向けのコンポーネント調整を追加
+      MuiIconButton: {
+        styleOverrides: {
+          root: {
+            // タップ領域を広げる
+            padding: '8px',
+          },
+          sizeSmall: {
+            padding: '4px',
+          },
+        },
+      },
+      MuiChip: {
+        styleOverrides: {
+          root: {
+            fontSize: '0.75rem',
+          },
+          sizeSmall: {
+            fontSize: '0.65rem',
+            height: '24px',
+          },
+        },
+      },
+      MuiToolbar: {
+        styleOverrides: {
+          // モバイル向けにツールバーを小さく
+          regular: {
+            '@media (max-width: 600px)': {
+              minHeight: '56px',
+              padding: '0 8px',
+            },
+          },
+        },
+      },
     },
   });
+  
+  // フォントサイズをレスポンシブに調整
+  theme = responsiveFontSizes(theme);
   
   return (
     <ThemeContext.Provider value={{ mode, toggleColorMode }}>

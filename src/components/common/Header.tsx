@@ -54,13 +54,23 @@ const Header: React.FC = () => {
   
   return (
     <AppBar position="static">
-      <Toolbar>
+      <Toolbar sx={{ 
+        minHeight: isMobile ? '48px !important' : '64px',
+        padding: isMobile ? '0 8px !important' : '0 16px',
+      }}>
         {isMobile && (
           <IconButton
             edge="start"
             color="inherit"
             aria-label="menu"
             onClick={toggleDrawer(true)}
+            sx={{ 
+              marginRight: 1, 
+              padding: '8px',
+              '& .MuiSvgIcon-root': {
+                fontSize: '1.5rem'
+              }
+            }}
           >
             <MenuIcon />
           </IconButton>
@@ -74,10 +84,14 @@ const Header: React.FC = () => {
             flexGrow: 1, 
             textDecoration: 'none',
             color: 'inherit',
-            fontWeight: 'bold'
+            fontWeight: 'bold',
+            fontSize: isMobile ? '1rem' : '1.25rem',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
           }}
         >
-          リズムゲーム楽曲ブラウザ
+          音ゲー広辞苑
         </Typography>
         
         {!isMobile && (
@@ -116,7 +130,13 @@ const Header: React.FC = () => {
           <IconButton 
             color="inherit" 
             onClick={toggleColorMode}
-            sx={{ mr: 1 }}
+            sx={{ 
+              mr: 1,
+              padding: isMobile ? '8px' : '12px',
+              '& .MuiSvgIcon-root': {
+                fontSize: isMobile ? '1.25rem' : '1.5rem'
+              }
+            }}
           >
             {mode === 'light' ? <Brightness4Icon /> : <Brightness7Icon />}
           </IconButton>
@@ -130,11 +150,14 @@ const Header: React.FC = () => {
               aria-haspopup="true"
               onClick={handleMenu}
               color="inherit"
+              sx={{ 
+                padding: isMobile ? '4px' : '8px',
+              }}
             >
               <Avatar 
                 alt={currentUser.displayName || undefined} 
                 src={currentUser.photoURL || undefined}
-                sx={{ width: 32, height: 32 }}
+                sx={{ width: isMobile ? 28 : 32, height: isMobile ? 28 : 32 }}
               >
                 {!currentUser.photoURL && ((currentUser.displayName || currentUser.email || 'U')[0].toUpperCase())}
               </Avatar>
@@ -174,13 +197,14 @@ const Header: React.FC = () => {
             color="inherit" 
             component={RouterLink} 
             to="/login"
+            sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}
           >
             ログイン
           </Button>
         )}
       </Toolbar>
       
-      {/* Mobile Drawer */}
+      {/* Mobile Drawer - 幅を広げてタップしやすく */}
       <Drawer
         anchor="left"
         open={drawerOpen}
@@ -193,16 +217,16 @@ const Header: React.FC = () => {
           onKeyDown={toggleDrawer(false)}
         >
           <List>
-            <ListItem button component={RouterLink} to="/">
+            <ListItem button component={RouterLink} to="/" sx={{ py: 2 }}>
               <ListItemIcon><HomeIcon /></ListItemIcon>
               <ListItemText primary="ホーム" />
             </ListItem>
-            <ListItem button component={RouterLink} to="/songs">
+            <ListItem button component={RouterLink} to="/songs" sx={{ py: 2 }}>
               <ListItemIcon><MusicNoteIcon /></ListItemIcon>
               <ListItemText primary="楽曲一覧" />
             </ListItem>
             {isAdmin && (
-              <ListItem button component={RouterLink} to="/admin">
+              <ListItem button component={RouterLink} to="/admin" sx={{ py: 2 }}>
                 <ListItemIcon><AdminPanelSettingsIcon /></ListItemIcon>
                 <ListItemText primary="管理画面" />
               </ListItem>
@@ -211,7 +235,7 @@ const Header: React.FC = () => {
           <Divider />
           
           {/* Theme Toggle Option in Drawer */}
-          <ListItem button onClick={toggleColorMode}>
+          <ListItem button onClick={toggleColorMode} sx={{ py: 2 }}>
             <ListItemIcon>
               {mode === 'light' ? <Brightness4Icon /> : <Brightness7Icon />}
             </ListItemIcon>
@@ -221,21 +245,21 @@ const Header: React.FC = () => {
           
           {currentUser ? (
             <List>
-              <ListItem>
+              <ListItem sx={{ py: 2 }}>
                 <ListItemIcon><AccountCircleIcon /></ListItemIcon>
                 <ListItemText 
                   primary={currentUser.displayName || currentUser.email}
                   primaryTypographyProps={{ noWrap: true }} 
                 />
               </ListItem>
-              <ListItem button onClick={handleLogout}>
+              <ListItem button onClick={handleLogout} sx={{ py: 2 }}>
                 <ListItemIcon><LogoutIcon /></ListItemIcon>
                 <ListItemText primary="ログアウト" />
               </ListItem>
             </List>
           ) : (
             <List>
-              <ListItem button component={RouterLink} to="/login">
+              <ListItem button component={RouterLink} to="/login" sx={{ py: 2 }}>
                 <ListItemIcon><AccountCircleIcon /></ListItemIcon>
                 <ListItemText primary="ログイン" />
               </ListItem>
