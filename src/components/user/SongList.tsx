@@ -14,14 +14,18 @@ import ArrowDropUpIcon from '@mui/icons-material/ArrowDropUp';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import ViewColumnIcon from '@mui/icons-material/ViewColumn';
 import FormatSizeIcon from '@mui/icons-material/FormatSize';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import { Song } from '../../types/Song';
 import { Game, DifficultyDefinition } from '../../types/Game';
 import { FilterOptions } from './FilterControls';
+import { useFavorites } from '../../hooks/useFavorites';
 
 interface SongListProps {
   songs: Song[];
   filters: FilterOptions;
   game: Game | null;
+  onAddToComparison?: (song: Song) => void;
 }
 
 // Column visibility state interface
@@ -35,11 +39,17 @@ interface ColumnVisibility {
   addedDate: boolean;
 }
 
-// Display density settings - 「さらに広め」の選択肢を追加
+// Display density settings
 type DisplayDensity = 'compact' | 'comfortable' | 'spacious' | 'very-spacious';
 
-const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
+const SongList: React.FC<SongListProps> = ({ 
+  songs, 
+  filters, 
+  game,
+  onAddToComparison
+}) => {
   const navigate = useNavigate();
+  const { favorites, toggleFavorite, isFavorite } = useFavorites();
   
   // Pagination state
   const [page, setPage] = useState(1);
@@ -51,23 +61,67 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
   const [sortIsCombo, setSortIsCombo] = useState<boolean>(false);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
   
-  // 広めの表示をデフォルトに設定
-  const [density, setDensity] = useState<DisplayDensity>('spacious');
-  const [fontSize, setFontSize] = useState<number>(12); // デフォルトのフォントサイズを大きめに設定
+  // Load user preferences from localStorage
+  const loadUserPreferences = () => {
+    try {
+      const savedSettings = localStorage.getItem('songBrowserSettings');
+      if (savedSettings) {
+        const parsedSettings = JSON.parse(savedSettings);
+        return {
+          density: parsedSettings.density || 'spacious',
+          fontSize: parsedSettings.fontSize || 12,
+          columnVisibility: parsedSettings.columnVisibility || {
+            artist: true,
+            lyricist: false,
+            composer: false,
+            arranger: false,
+            duration: true,
+            bpm: true,
+            addedDate: false
+          }
+        };
+      }
+    } catch (error) {
+      console.error('Error loading user preferences:', error);
+    }
+    
+    return {
+      density: 'spacious' as DisplayDensity,
+      fontSize: 12,
+      columnVisibility: {
+        artist: true,
+        lyricist: false,
+        composer: false,
+        arranger: false,
+        duration: true,
+        bpm: true,
+        addedDate: false
+      }
+    };
+  };
   
-  // Column visibility state
-  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({
-    artist: true,
-    lyricist: false,
-    composer: false,
-    arranger: false,
-    duration: true,
-    bpm: true,
-    addedDate: false
-  });
+  const defaultPreferences = loadUserPreferences();
+  
+  // State for display preferences
+  const [density, setDensity] = useState<DisplayDensity>(defaultPreferences.density);
+  const [fontSize, setFontSize] = useState<number>(defaultPreferences.fontSize);
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>(defaultPreferences.columnVisibility);
 
   // Column settings panel
   const [showColumnSettings, setShowColumnSettings] = useState<boolean>(false);
+  
+  // Save user preferences when they change
+  React.useEffect(() => {
+    try {
+      localStorage.setItem('songBrowserSettings', JSON.stringify({
+        density,
+        fontSize,
+        columnVisibility
+      }));
+    } catch (error) {
+      console.error('Error saving user preferences:', error);
+    }
+  }, [density, fontSize, columnVisibility]);
   
   // Game's difficulties sorted by order (memoized)
   const sortedDifficulties = useMemo(() => {
@@ -75,7 +129,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
     return [...game.difficulties].sort((a, b) => a.order - b.order);
   }, [game]);
   
-  // Computed density style settings - より広い表示を追加
+  // Computed density style settings
   const densityStyles = useMemo(() => {
     switch (density) {
       case 'compact':
@@ -107,20 +161,18 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
   
   // Filtered songs (memoized with performance optimizations)
   const filteredSongs = useMemo(() => {
-    console.time('filter');
-    
     // Create optimized lookup sets for faster filtering
     const searchTermLower = filters.searchText.toLowerCase();
     const tagFiltersLower = filters.tags.map(tag => tag.toLowerCase());
     
-    // Optimized filtering logic
-    const result = songs.filter(song => {
+    // Filter the songs based on all criteria
+    return songs.filter(song => {
       // Skip processing if no filters are applied
-      if (!searchTermLower && filters.difficulty === 'ALL' && tagFiltersLower.length === 0) {
+      if (!searchTermLower && filters.difficulty === 'ALL' && tagFiltersLower.length === 0 && !filters.favoritesOnly) {
         return true;
       }
       
-      // Text search - only calculate if search term exists
+      // Text search
       if (searchTermLower) {
         const songNameLower = song.name.toLowerCase();
         const artistLower = (song.info.artist || '').toLowerCase();
@@ -130,7 +182,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
         }
       }
       
-      // Difficulty filter - only process if not ALL
+      // Difficulty filter
       if (filters.difficulty !== 'ALL') {
         const diffInfo = song.difficulties[filters.difficulty];
         
@@ -144,18 +196,19 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
         }
       }
       
-      // Tag filter - only process if tags exist
+      // Favorites filter
+      if (filters.favoritesOnly && !isFavorite(song.id)) {
+        return false;
+      }
+      
+      // Tag filter
       if (tagFiltersLower.length > 0) {
         if (!song.info.tags || song.info.tags.length === 0) {
           return false;
         }
         
-        // Convert tags to lowercase array for comparison
         const songTagsLower = song.info.tags.map(tag => tag.toLowerCase());
-        
-        // Check if any tag matches
         const hasMatchingTag = tagFiltersLower.some(filterTag => {
-          // Check for any partial match in the song tags
           return songTagsLower.some(songTag => songTag.includes(filterTag));
         });
         
@@ -166,14 +219,10 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
       
       return true;
     });
-    
-    console.timeEnd('filter');
-    return result;
-  }, [songs, filters]);
+  }, [songs, filters, isFavorite]);
   
   // Apply sorting (memoized)
   const sortedSongs = useMemo(() => {
-    // 既存のソートロジック維持
     return [...filteredSongs].sort((a, b) => {
       // Difficulty level sort
       if (sortDiffId) {
@@ -248,7 +297,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
   }, [sortedSongs, page, rowsPerPage]);
   
   // Event handlers
-  const handleChangePage = (_event: unknown, newPage: number) => {
+  const handleChangePage = (_event: React.ChangeEvent<unknown>, newPage: number) => {
     setPage(newPage);
   };
   
@@ -256,6 +305,43 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
     setRowsPerPage(parseInt(event.target.value));
     setPage(1); // Reset to first page
   };
+  
+  // Navigate to song detail page
+  const handleSongClick = useCallback((songId: string) => {
+    navigate(`/songs/${songId}`);
+  }, [navigate]);
+  
+  // YouTube link handler
+  const handleYouTubeClick = useCallback((
+    event: React.MouseEvent<HTMLButtonElement>,
+    url?: string | null
+  ) => {
+    event.stopPropagation();
+    
+    if (url) {
+      window.open(url, '_blank');
+    }
+  }, []);
+  
+  // Toggle favorite
+  const handleToggleFavorite = useCallback((
+    event: React.MouseEvent<HTMLButtonElement>,
+    songId: string
+  ) => {
+    event.stopPropagation();
+    toggleFavorite(songId);
+  }, [toggleFavorite]);
+  
+  // Add to comparison
+  const handleAddToComparison = useCallback((
+    event: React.MouseEvent<HTMLButtonElement>,
+    song: Song
+  ) => {
+    event.stopPropagation();
+    if (onAddToComparison) {
+      onAddToComparison(song);
+    }
+  }, [onAddToComparison]);
   
   // Basic field sort
   const handleSortChange = (field: string) => {
@@ -291,23 +377,6 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
     }
   };
   
-  // Navigate to song detail page
-  const handleSongClick = useCallback((songId: string) => {
-    navigate(`/songs/${songId}`);
-  }, [navigate]);
-  
-  // YouTube link handler
-  const handleYouTubeClick = useCallback((
-    event: React.MouseEvent<HTMLButtonElement>,
-    url?: string | null
-  ) => {
-    event.stopPropagation();
-    
-    if (url) {
-      window.open(url, '_blank');
-    }
-  }, []);
-  
   // Sort icon renderer
   const renderSortIcon = (field: string, diffId: string | null = null, isCombo: boolean = false) => {
     const isActive = diffId 
@@ -320,11 +389,6 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
       ? <ArrowDropUpIcon fontSize="small" />
       : <ArrowDropDownIcon fontSize="small" />;
   };
-  
-  // Get difficulty definition
-  const getDifficultyDefinition = useCallback((id: string): DifficultyDefinition | undefined => {
-    return game?.difficulties.find(d => d.id === id);
-  }, [game]);
   
   // Handle column visibility change
   const handleColumnChange = (column: keyof ColumnVisibility) => {
@@ -482,9 +546,9 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
         )}
       </Paper>
       
-      {/* テーブルコンテナを画面幅いっぱいに表示 */}
-      <TableContainer component={Paper} sx={{ width: '100%' }}>
-        <Table aria-label="song list table" size="small">
+      {/* Table with song data */}
+      <TableContainer component={Paper}>
+        <Table size="small" aria-label="song table">
           <TableHead>
             <TableRow>
               <TableCell 
@@ -493,7 +557,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   cursor: 'pointer', 
                   fontWeight: 'bold',
                   ...densityStyles,
-                  width: '30px', // No.欄を極限まで狭く
+                  width: '30px',
                   minWidth: '30px',
                   maxWidth: '30px'
                 }}
@@ -506,12 +570,12 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   cursor: 'pointer', 
                   fontWeight: 'bold',
                   ...densityStyles,
-                  // 楽曲名カラムを柔軟に設定
                   minWidth: '120px'
                 }}
               >
                 楽曲名{renderSortIcon('name')}
               </TableCell>
+              
               {columnVisibility.artist && (
                 <TableCell 
                   onClick={() => handleSortChange('artist')}
@@ -525,6 +589,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   アーティスト{renderSortIcon('artist')}
                 </TableCell>
               )}
+              
               {columnVisibility.lyricist && (
                 <TableCell 
                   onClick={() => handleSortChange('lyricist')}
@@ -538,6 +603,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   作詞{renderSortIcon('lyricist')}
                 </TableCell>
               )}
+              
               {columnVisibility.composer && (
                 <TableCell 
                   onClick={() => handleSortChange('composer')}
@@ -551,6 +617,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   作曲{renderSortIcon('composer')}
                 </TableCell>
               )}
+              
               {columnVisibility.arranger && (
                 <TableCell 
                   onClick={() => handleSortChange('arranger')}
@@ -564,6 +631,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   編曲{renderSortIcon('arranger')}
                 </TableCell>
               )}
+              
               {columnVisibility.duration && (
                 <TableCell 
                   onClick={() => handleSortChange('duration')}
@@ -579,6 +647,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   時間{renderSortIcon('duration')}
                 </TableCell>
               )}
+              
               {columnVisibility.bpm && (
                 <TableCell 
                   onClick={() => handleSortChange('bpm')}
@@ -594,6 +663,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   BPM{renderSortIcon('bpm')}
                 </TableCell>
               )}
+              
               {columnVisibility.addedDate && (
                 <TableCell 
                   onClick={() => handleSortChange('addedDate')}
@@ -609,6 +679,8 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   追加日{renderSortIcon('addedDate')}
                 </TableCell>
               )}
+              
+              {/* Difficulty columns */}
               {sortedDifficulties.map(diff => (
                 <TableCell 
                   key={diff.id} 
@@ -616,14 +688,12 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   sx={{ 
                     ...densityStyles,
                     padding: '1px 1px',
-                    // 難易度セルの幅を広げる
                     width: '60px',
                     minWidth: '60px',
                     maxWidth: '60px'
                   }}
                 >
                   <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    {/* 難易度タイトル */}
                     <Box 
                       sx={{ 
                         display: 'flex', 
@@ -646,19 +716,21 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   </Box>
                 </TableCell>
               ))}
+              
               <TableCell 
                 align="center"
                 sx={{ 
                   ...densityStyles,
-                  width: '30px',
-                  minWidth: '30px',
-                  maxWidth: '30px'
+                  width: '80px',
+                  minWidth: '80px',
+                  maxWidth: '80px'
                 }}
               >
-                詳細
+                操作
               </TableCell>
             </TableRow>
           </TableHead>
+          
           <TableBody>
             {paginatedSongs.map((song) => (
               <TableRow
@@ -667,13 +739,14 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                 onClick={() => handleSongClick(song.id)}
                 sx={{ 
                   cursor: 'pointer',
-                  '&:hover': { bgcolor: 'rgba(0, 0, 0, 0.04)' }
+                  '&:hover': { 
+                    bgcolor: 'rgba(0, 0, 0, 0.04)'
+                  }
                 }}
               >
                 <TableCell sx={densityStyles}>{song.songNo}</TableCell>
                 <TableCell sx={{
                   ...densityStyles,
-                  // 楽曲名は複数行にわたって表示
                   whiteSpace: 'normal',
                   wordBreak: 'break-word'
                 }}>
@@ -695,7 +768,6 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                 {columnVisibility.artist && (
                   <TableCell sx={{
                     ...densityStyles,
-                    // 折り返して表示
                     whiteSpace: 'normal',
                     wordBreak: 'break-word'
                   }}>
@@ -747,6 +819,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   </TableCell>
                 )}
                 
+                {/* Difficulty cells */}
                 {sortedDifficulties.map(diff => {
                   const diffInfo = song.difficulties[diff.id];
                   return (
@@ -766,7 +839,7 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                           mt: 0.5,
                           px: 0.5
                         }}>
-                          {/* 左側: レベルとコンボ */}
+                          {/* Left: Level and combo */}
                           <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                             <Chip
                               label={diffInfo.level}
@@ -800,17 +873,17 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                             </Typography>
                           </Box>
                           
-                          {/* 右側: YouTubeボタン */}
+                          {/* Right: YouTube button */}
                           {diffInfo.youtubeUrl && (
                             <IconButton
                               size="small"
                               color="error"
                               onClick={(e) => handleYouTubeClick(e, diffInfo.youtubeUrl)}
                               sx={{ 
-                                p: 0.5, // パディングを追加して押しやすく
+                                p: 0.5,
                                 ml: 0.5,
                                 '& .MuiSvgIcon-root': {
-                                  fontSize: `${Number(densityStyles.fontSize.replace('px', '')) + 4}px` // アイコンサイズを大きく
+                                  fontSize: `${Number(densityStyles.fontSize.replace('px', '')) + 4}px`
                                 }
                               }}
                             >
@@ -825,19 +898,69 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
                   );
                 })}
                 
-                <TableCell align="center" sx={densityStyles}>
-                  <IconButton 
-                    size="small" 
-                    color="primary"
-                    sx={{ 
-                      p: 0,
-                      '& .MuiSvgIcon-root': {
-                        fontSize: `${Number(densityStyles.fontSize.replace('px', '')) + 1}px`
-                      }
-                    }}
-                  >
-                    <InfoOutlinedIcon />
-                  </IconButton>
+                {/* Action buttons cell */}
+                <TableCell align="center" sx={{ ...densityStyles, padding: '0 4px' }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'center', gap: 0.5 }}>
+                    <IconButton 
+                      size="small" 
+                      color="primary"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleSongClick(song.id);
+                      }}
+                      sx={{ 
+                        p: 0.5,
+                        '& .MuiSvgIcon-root': {
+                          fontSize: `${Number(densityStyles.fontSize.replace('px', '')) + 4}px`
+                        }
+                      }}
+                    >
+                      <InfoOutlinedIcon />
+                    </IconButton>
+                    
+                    <IconButton 
+                      size="small" 
+                      color="secondary"
+                      onClick={(e) => handleToggleFavorite(e, song.id)}
+                      sx={{ 
+                        p: 0.5,
+                        '& .MuiSvgIcon-root': {
+                          fontSize: `${Number(densityStyles.fontSize.replace('px', '')) + 4}px`
+                        }
+                      }}
+                    >
+                      {isFavorite(song.id) ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+                    </IconButton>
+                    
+                    {onAddToComparison && (
+                      <Tooltip title="比較に追加">
+                        <IconButton 
+                          size="small" 
+                          color="info"
+                          onClick={(e) => handleAddToComparison(e, song)}
+                          sx={{ 
+                            p: 0.5,
+                            '& .MuiSvgIcon-root': {
+                              fontSize: `${Number(densityStyles.fontSize.replace('px', '')) + 4}px`
+                            }
+                          }}
+                        >
+                          <Box sx={{ 
+                            width: 18, 
+                            height: 18, 
+                            border: '2px solid', 
+                            borderColor: 'info.main',
+                            borderRadius: '2px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}>
+                            <Box component="span" sx={{ fontSize: '12px', fontWeight: 'bold' }}>+</Box>
+                          </Box>
+                        </IconButton>
+                      </Tooltip>
+                    )}
+                  </Box>
                 </TableCell>
               </TableRow>
             ))}
@@ -845,7 +968,8 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
         </Table>
       </TableContainer>
       
-      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 1 }}>
+      {/* Bottom pagination */}
+      <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
         <Pagination 
           count={Math.ceil(filteredSongs.length / rowsPerPage)} 
           page={page}
@@ -860,4 +984,4 @@ const SongList: React.FC<SongListProps> = ({ songs, filters, game }) => {
   );
 };
 
-export default SongList;
+export default React.memo(SongList);

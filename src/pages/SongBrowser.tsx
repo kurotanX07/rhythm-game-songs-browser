@@ -1,9 +1,11 @@
+// src/pages/SongBrowser.tsx
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Container, Typography, Box, CircularProgress, Alert,
-  Paper, FormControl, InputLabel, Select, MenuItem, SelectChangeEvent
+  Paper, Button, Tooltip
 } from '@mui/material';
+import DownloadIcon from '@mui/icons-material/Download';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
 import ResponsiveLayout from '../components/layout/ResponsiveLayout';
@@ -11,18 +13,25 @@ import SEO from '../components/common/SEO';
 import GameSelector from '../components/user/GameSelector';
 import FilterControls, { FilterOptions } from '../components/user/FilterControls';
 import SongList from '../components/user/SongList';
+import ExportDialog from '../components/user/ExportDialog';
 import { useSongData } from '../contexts/SongDataContext';
 import { Game } from '../types/Game';
+import ErrorBoundary from '../components/common/ErrorBoundary';
 
 const SongBrowser: React.FC = () => {
   const { games, selectedGameId, songs, loading, error, selectGame } = useSongData();
+  const [filteredSongs, setFilteredSongs] = useState(songs);
   const [filters, setFilters] = useState<FilterOptions>({
     searchText: '',
     difficulty: 'ALL',
     minLevel: 1,
     maxLevel: 15,
-    tags: []
+    tags: [],
+    favoritesOnly: false
   });
+  
+  // Export dialog state
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
   
   const location = useLocation();
   const navigate = useNavigate();
@@ -79,6 +88,69 @@ const SongBrowser: React.FC = () => {
     }
   }, [selectedGameId, navigate, location]);
   
+  // Update the filteredSongs state when filters or songs change
+  useEffect(() => {
+    if (!songs.length) {
+      setFilteredSongs([]);
+      return;
+    }
+    
+    // Apply filters
+    const filtered = songs.filter(song => {
+      // Search text filter
+      if (filters.searchText) {
+        const searchTermLower = filters.searchText.toLowerCase();
+        const songNameLower = song.name.toLowerCase();
+        const artistLower = (song.info.artist || '').toLowerCase();
+        
+        if (!songNameLower.includes(searchTermLower) && !artistLower.includes(searchTermLower)) {
+          return false;
+        }
+      }
+      
+      // Difficulty filter
+      if (filters.difficulty !== 'ALL') {
+        const diffInfo = song.difficulties[filters.difficulty];
+        
+        if (!diffInfo || !diffInfo.level) {
+          return false;
+        }
+        
+        // Level range
+        if (diffInfo.level < filters.minLevel || diffInfo.level > filters.maxLevel) {
+          return false;
+        }
+      }
+      
+      // Tag filter
+      if (filters.tags.length > 0) {
+        if (!song.info.tags || song.info.tags.length === 0) {
+          return false;
+        }
+        
+        const songTagsLower = song.info.tags.map(tag => tag.toLowerCase());
+        const tagFiltersLower = filters.tags.map(tag => tag.toLowerCase());
+        
+        const hasMatchingTag = tagFiltersLower.some(filterTag => {
+          return songTagsLower.some(songTag => songTag.includes(filterTag));
+        });
+        
+        if (!hasMatchingTag) {
+          return false;
+        }
+      }
+      
+      // Favorites filter
+      if (filters.favoritesOnly) {
+        // This will be handled by the SongList component with useFavorites hook
+      }
+      
+      return true;
+    });
+    
+    setFilteredSongs(filtered);
+  }, [songs, filters]);
+  
   const handleGameSelect = (gameId: string) => {
     if (gameId !== selectedGameId) {
       selectGame(gameId);
@@ -89,24 +161,10 @@ const SongBrowser: React.FC = () => {
     setFilters(newFilters);
   };
   
-  // より効率的なゲームセレクター（コンパクト化）
-  const CompactGameSelector = () => (
-    <FormControl size="small" sx={{ minWidth: 200, mb: 1 }}>
-      <InputLabel id="compact-game-select-label">ゲームタイトル</InputLabel>
-      <Select
-        labelId="compact-game-select-label"
-        value={selectedGameId || ''}
-        label="ゲームタイトル"
-        onChange={(e: SelectChangeEvent<string>) => handleGameSelect(e.target.value)}
-      >
-        {games.map((game) => (
-          <MenuItem key={game.id} value={game.id}>
-            {game.title}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
-  );
+  // Handle export button click
+  const handleExportClick = () => {
+    setExportDialogOpen(true);
+  };
   
   return (
     <>
@@ -122,7 +180,11 @@ const SongBrowser: React.FC = () => {
               楽曲一覧
             </Typography>
             
-            <CompactGameSelector />
+            <GameSelector 
+              games={games} 
+              selectedGameId={selectedGameId} 
+              onGameSelect={handleGameSelect} 
+            />
           </Box>
           
           {error && (
@@ -131,23 +193,52 @@ const SongBrowser: React.FC = () => {
             </Alert>
           )}
           
-          {loading ? (
-            <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
-              <CircularProgress />
-            </Box>
-          ) : (
-            <>
-              <FilterControls 
-                onFilterChange={handleFilterChange} 
-                game={selectedGame}
-              />
-              <SongList 
-                songs={songs} 
-                filters={filters} 
-                game={selectedGame}
-              />
-            </>
-          )}
+          <ErrorBoundary>
+            {loading ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', my: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : (
+              <>
+                <FilterControls 
+                  onFilterChange={handleFilterChange} 
+                  game={selectedGame}
+                />
+                
+                {/* Export Button */}
+                {filteredSongs.length > 0 && (
+                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                    <Tooltip title="表示中の楽曲をエクスポート">
+                      <Button
+                        variant="outlined"
+                        color="primary"
+                        size="small"
+                        startIcon={<DownloadIcon />}
+                        onClick={handleExportClick}
+                      >
+                        エクスポート ({filteredSongs.length}曲)
+                      </Button>
+                    </Tooltip>
+                  </Box>
+                )}
+                
+                <SongList 
+                  songs={songs} 
+                  filters={filters} 
+                  game={selectedGame}
+                />
+                
+                {/* Export Dialog */}
+                <ExportDialog 
+                  open={exportDialogOpen}
+                  onClose={() => setExportDialogOpen(false)}
+                  songs={filteredSongs}
+                  game={selectedGame}
+                  filteredCount={filteredSongs.length}
+                />
+              </>
+            )}
+          </ErrorBoundary>
         </Container>
       </ResponsiveLayout>
       <Footer />

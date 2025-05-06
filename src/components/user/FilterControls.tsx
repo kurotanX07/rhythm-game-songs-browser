@@ -1,14 +1,16 @@
+// src/components/user/FilterControls.tsx
 import React, { useState, useEffect } from 'react';
 import { 
   Box, Typography, TextField, FormControl, 
   InputLabel, Select, MenuItem, SelectChangeEvent,
   Chip, IconButton, Slider, Stack, Paper, Button,
-  Collapse
+  Collapse, FormControlLabel, Checkbox, Tooltip
 } from '@mui/material';
 import ClearIcon from '@mui/icons-material/Clear';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import FavoriteIcon from '@mui/icons-material/Favorite';
 import { useSongData } from '../../contexts/SongDataContext';
 import { Game } from '../../types/Game';
 
@@ -23,26 +25,46 @@ export interface FilterOptions {
   minLevel: number;
   maxLevel: number;
   tags: string[];
+  favoritesOnly: boolean;
 }
 
 const FilterControls: React.FC<FilterControlsProps> = ({ 
   onFilterChange, 
   game 
 }) => {
-  const [searchText, setSearchText] = useState<string>('');
-  const [difficulty, setDifficulty] = useState<string>('ALL');
-  const [levelRange, setLevelRange] = useState<number[]>([1, 15]);
-  const [tag, setTag] = useState<string>('');
-  const [tags, setTags] = useState<string[]>([]);
+  // Get saved filter settings if available
+  const loadSavedFilters = (): Partial<FilterOptions> => {
+    try {
+      const savedFilters = localStorage.getItem('songFilters');
+      if (savedFilters) {
+        return JSON.parse(savedFilters);
+      }
+    } catch (error) {
+      console.error('Error loading saved filters:', error);
+    }
+    return {};
+  };
   
-  // フィルター開閉状態の追加
+  const savedFilters = loadSavedFilters();
+  
+  const [searchText, setSearchText] = useState<string>(savedFilters.searchText || '');
+  const [difficulty, setDifficulty] = useState<string>(savedFilters.difficulty || 'ALL');
+  const [levelRange, setLevelRange] = useState<number[]>([
+    savedFilters.minLevel || (game?.minLevel || 1), 
+    savedFilters.maxLevel || (game?.maxLevel || 37)
+  ]);
+  const [tag, setTag] = useState<string>('');
+  const [tags, setTags] = useState<string[]>(savedFilters.tags || []);
+  const [favoritesOnly, setFavoritesOnly] = useState<boolean>(savedFilters.favoritesOnly || false);
+  
+  // Filter panel expansion state
   const [expanded, setExpanded] = useState<boolean>(false);
   
   const difficulties = game?.difficulties || [];
   
   // Get min and max levels from the game - デフォルト値を修正
   const minLevel = game?.minLevel || 1;
-  const maxLevel = game?.maxLevel || 37; // デフォルト最大値を37に変更
+  const maxLevel = game?.maxLevel || 37;
   
   useEffect(() => {
     // Reset difficulty when game changes
@@ -52,12 +74,27 @@ const FilterControls: React.FC<FilterControlsProps> = ({
     if (game) {
       // ゲームの設定値またはデフォルト値を使用
       const gameMinLevel = game.minLevel || 1;
-      const gameMaxLevel = game.maxLevel || 37; // 最大値のデフォルトを37に設定
+      const gameMaxLevel = game.maxLevel || 37;
       setLevelRange([gameMinLevel, gameMaxLevel]);
     }
   }, [game]);
   
-  // Input handlers and filter updates remain the same
+  // Save filters to localStorage when they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('songFilters', JSON.stringify({
+        searchText,
+        difficulty,
+        minLevel: levelRange[0],
+        maxLevel: levelRange[1],
+        tags,
+        favoritesOnly
+      }));
+    } catch (error) {
+      console.error('Error saving filters:', error);
+    }
+  }, [searchText, difficulty, levelRange, tags, favoritesOnly]);
+  
   const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newSearchText = event.target.value;
     setSearchText(newSearchText);
@@ -98,6 +135,12 @@ const FilterControls: React.FC<FilterControlsProps> = ({
     updateFilters({ tags: newTags });
   };
   
+  const handleFavoritesOnlyChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = event.target.checked;
+    setFavoritesOnly(newValue);
+    updateFilters({ favoritesOnly: newValue });
+  };
+  
   const updateFilters = (partialFilters: Partial<FilterOptions>) => {
     onFilterChange({
       searchText,
@@ -105,18 +148,37 @@ const FilterControls: React.FC<FilterControlsProps> = ({
       minLevel: levelRange[0],
       maxLevel: levelRange[1],
       tags,
+      favoritesOnly,
       ...partialFilters
     });
   };
   
-  // フィルター開閉ハンドラー
+  // Filter panel expansion toggle
   const toggleExpanded = () => {
     setExpanded(!expanded);
   };
   
+  // Clear all filters
+  const handleClearAllFilters = () => {
+    setSearchText('');
+    setDifficulty('ALL');
+    setLevelRange([minLevel, maxLevel]);
+    setTags([]);
+    setFavoritesOnly(false);
+    
+    onFilterChange({
+      searchText: '',
+      difficulty: 'ALL',
+      minLevel: minLevel,
+      maxLevel: maxLevel,
+      tags: [],
+      favoritesOnly: false
+    });
+  };
+  
   return (
     <Paper sx={{ mb: 2, overflow: 'hidden' }}>
-      {/* 検索バーとフィルター開閉ボタン - 常に表示 */}
+      {/* Search bar and filter expansion toggle */}
       <Box sx={{ 
         p: 1.5, 
         display: 'flex', 
@@ -134,6 +196,23 @@ const FilterControls: React.FC<FilterControlsProps> = ({
           sx={{ mr: 1 }}
         />
         
+        <Tooltip title="お気に入りのみ">
+          <Checkbox
+            icon={<FavoriteIcon />}
+            checkedIcon={<FavoriteIcon />}
+            checked={favoritesOnly}
+            onChange={handleFavoritesOnlyChange}
+            color="secondary"
+            sx={{
+              mr: 1,
+              color: favoritesOnly ? 'secondary.main' : 'rgba(0, 0, 0, 0.3)',
+              '&.Mui-checked': {
+                color: 'secondary.main',
+              },
+            }}
+          />
+        </Tooltip>
+        
         <Button
           onClick={toggleExpanded}
           color="primary"
@@ -146,9 +225,23 @@ const FilterControls: React.FC<FilterControlsProps> = ({
         </Button>
       </Box>
       
-      {/* 詳細フィルター - 開閉可能 */}
+      {/* Expanded filter panel */}
       <Collapse in={expanded}>
         <Box sx={{ p: 1.5, pt: 1 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+            <Typography variant="subtitle1">フィルター設定</Typography>
+            
+            <Button 
+              size="small" 
+              variant="outlined" 
+              color="inherit"
+              onClick={handleClearAllFilters}
+              startIcon={<ClearIcon />}
+            >
+              全てクリア
+            </Button>
+          </Box>
+          
           <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 1 }}>
             <FormControl sx={{ minWidth: 120, flexGrow: 0 }}>
               <InputLabel id="difficulty-select-label" size="small">難易度</InputLabel>
@@ -162,7 +255,17 @@ const FilterControls: React.FC<FilterControlsProps> = ({
               >
                 <MenuItem value="ALL">すべて</MenuItem>
                 {difficulties.map(diff => (
-                  <MenuItem key={diff.id} value={diff.id}>{diff.name}</MenuItem>
+                  <MenuItem key={diff.id} value={diff.id}>
+                    <Box component="span" sx={{ 
+                      display: 'inline-block',
+                      width: 12,
+                      height: 12,
+                      borderRadius: '50%',
+                      bgcolor: diff.color,
+                      mr: 1
+                    }} />
+                    {diff.name}
+                  </MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -185,9 +288,21 @@ const FilterControls: React.FC<FilterControlsProps> = ({
                 size="small"
               />
             </Box>
+            
+            <FormControlLabel
+              control={
+                <Checkbox 
+                  checked={favoritesOnly}
+                  onChange={handleFavoritesOnlyChange}
+                  color="secondary"
+                />
+              }
+              label="お気に入りのみ表示"
+              sx={{ ml: 0 }}
+            />
           </Box>
           
-          <Box sx={{ mt: 1 }}>
+          <Box sx={{ mt: 2 }}>
             <TextField
               fullWidth
               label="タグ（Enter で追加）"
@@ -221,7 +336,7 @@ const FilterControls: React.FC<FilterControlsProps> = ({
                 >
                   <ClearIcon fontSize="small" />
                   <Typography variant="caption" sx={{ ml: 0.5 }}>
-                    全てクリア
+                    タグをクリア
                   </Typography>
                 </IconButton>
               )}
@@ -233,4 +348,4 @@ const FilterControls: React.FC<FilterControlsProps> = ({
   );
 };
 
-export default FilterControls;
+export default React.memo(FilterControls);

@@ -1,26 +1,32 @@
+// src/components/common/Header.tsx
 import React, { useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import {
   AppBar, Toolbar, Typography, Button, IconButton,
   Box, Menu, MenuItem, Avatar, Drawer, List, ListItem,
-  ListItemIcon, ListItemText, Divider, useMediaQuery
+  ListItemIcon, ListItemText, Divider, useMediaQuery,
+  Tooltip
 } from '@mui/material';
-import { useTheme } from '@mui/material/styles';
+import { useTheme as useMuiTheme } from '@mui/material/styles';
 import MenuIcon from '@mui/icons-material/Menu';
 import HomeIcon from '@mui/icons-material/Home';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import LogoutIcon from '@mui/icons-material/Logout';
+import Brightness4Icon from '@mui/icons-material/Brightness4';
+import Brightness7Icon from '@mui/icons-material/Brightness7';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
 
 const Header: React.FC = () => {
   const { currentUser, isAdmin, signOut } = useAuth();
   const navigate = useNavigate();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const muiTheme = useMuiTheme();
+  const { mode, toggleColorMode } = useTheme();
+  const isMobile = useMediaQuery(muiTheme.breakpoints.down('sm'));
   
-  // メニュー状態
+  // Menu states
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
   
@@ -105,6 +111,17 @@ const Header: React.FC = () => {
           </Box>
         )}
         
+        {/* Theme Toggle Button */}
+        <Tooltip title={mode === 'light' ? 'ダークモード' : 'ライトモード'}>
+          <IconButton 
+            color="inherit" 
+            onClick={toggleColorMode}
+            sx={{ mr: 1 }}
+          >
+            {mode === 'light' ? <Brightness4Icon /> : <Brightness7Icon />}
+          </IconButton>
+        </Tooltip>
+        
         {currentUser ? (
           <Box>
             <IconButton
@@ -163,7 +180,7 @@ const Header: React.FC = () => {
         )}
       </Toolbar>
       
-      {/* モバイルドロワー */}
+      {/* Mobile Drawer */}
       <Drawer
         anchor="left"
         open={drawerOpen}
@@ -192,6 +209,16 @@ const Header: React.FC = () => {
             )}
           </List>
           <Divider />
+          
+          {/* Theme Toggle Option in Drawer */}
+          <ListItem button onClick={toggleColorMode}>
+            <ListItemIcon>
+              {mode === 'light' ? <Brightness4Icon /> : <Brightness7Icon />}
+            </ListItemIcon>
+            <ListItemText primary={mode === 'light' ? 'ダークモード' : 'ライトモード'} />
+          </ListItem>
+          <Divider />
+          
           {currentUser ? (
             <List>
               <ListItem>
