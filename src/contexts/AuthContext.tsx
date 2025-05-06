@@ -85,7 +85,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
               membership.membershipExpiry > new Date();
             
             setUserMembership(membership);
-            setIsPremium(isUserAdmin || isValidPremium);
+            setIsPremium(Boolean(isUserAdmin || isValidPremium));
           } else {
             // No membership document exists, create one with free tier
             const defaultMembership: UserWithMembership = {

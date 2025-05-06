@@ -85,7 +85,7 @@ const MembershipPage: React.FC = () => {
       
       // Clear URL parameters
       window.history.replaceState({}, document.title, window.location.pathname);
-    } catch (err) {
+    } catch (err: any) { // Fixed: Properly type the error
       console.error('Payment verification error:', err);
       setError('支払いの確認中にエラーが発生しました。サポートにお問い合わせください。');
     } finally {
@@ -124,16 +124,20 @@ const MembershipPage: React.FC = () => {
       });
       
       if (error) {
-        throw new Error(error.message);
+        throw new Error((error as Error).message);
       }
       
       // For demo, simulate success since we're not actually redirecting
       setSuccess('支払いが完了しました！プレミアム機能をお楽しみください。');
       
-    } catch (err: any) {
-      console.error('Subscription error:', err);
-      setError(err.message || '購読処理中にエラーが発生しました。もう一度お試しください。');
-    } finally {
+    } catch (err: unknown) {
+        console.error('Subscription error:', err);
+        setError(
+          err instanceof Error 
+            ? err.message 
+            : '購読処理中にエラーが発生しました。もう一度お試しください。'
+        );
+      }finally {
       setLoading(false);
     }
   };

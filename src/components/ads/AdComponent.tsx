@@ -56,6 +56,28 @@ const AdComponent: React.FC<AdComponentProps> = ({
   // Get the current placeholder ad
   const placeholderAd = PLACEHOLDER_ADS[currentAdIndex];
   
+  // Move useEffect BEFORE any conditional returns to fix the hook rule violation
+  useEffect(() => {
+    // Only execute effect logic if showAds is true
+    if (showAds) {
+      // Simulate ad loading
+      const timeout = setTimeout(() => {
+        setAdLoaded(true);
+        
+        // In a real app with actual ad network:
+        // if (window.adNetwork) {
+        //   window.adNetwork.displayAd({
+        //     element: adRef.current,
+        //     slotId: slot || adUnit,
+        //     sizes: [[300, 250]]
+        //   });
+        // }
+      }, 500);
+      
+      return () => clearTimeout(timeout);
+    }
+  }, [adUnit, slot, showAds]);
+  
   // Don't render anything if ads are disabled
   if (!showAds) {
     return null;
@@ -90,26 +112,6 @@ const AdComponent: React.FC<AdComponentProps> = ({
         return { margin: 2 };
     }
   };
-  
-  // In a real app, this would interface with the ad network
-  useEffect(() => {
-    // Simulate ad loading
-    const timeout = setTimeout(() => {
-      setAdLoaded(true);
-      
-      // In a real app with actual ad network:
-      // Try to load the ad from the ad network
-      // if (window.adNetwork) {
-      //   window.adNetwork.displayAd({
-      //     element: adRef.current,
-      //     slotId: slot || adUnit,
-      //     sizes: [[300, 250]]
-      //   });
-      // }
-    }, 500);
-    
-    return () => clearTimeout(timeout);
-  }, [adUnit, slot]);
   
   // Handle ad click
   const handleAdClick = () => {

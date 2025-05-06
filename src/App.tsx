@@ -6,13 +6,13 @@ import { HelmetProvider } from 'react-helmet-async';
 import { AuthProvider } from './contexts/AuthContext';
 import { SongDataProvider } from './contexts/SongDataContext';
 import { AccessibilityProvider } from './components/common/AccessibilityProvider';
-import { AdProvider } from './contexts/AdContext'; // Add AdProvider
+import { AdProvider } from './contexts/AdContext';
 import ThemeProvider from './contexts/ThemeContext';
 import ErrorBoundary from './components/common/ErrorBoundary';
 import Loader from './components/common/Loader';
 import RequireAuth from './components/common/RequireAuth';
 import RequireAdmin from './components/common/RequireAdmin';
-import RequirePremium from './components/common/RequirePremium'; // New component for premium features
+import RequirePremium from './components/common/RequirePremium';
 
 // Lazy loaded components
 const Home = lazy(() => import('./pages/Home'));
@@ -21,7 +21,7 @@ const SongDetails = lazy(() => import('./pages/SongDetails'));
 const Admin = lazy(() => import('./pages/Admin'));
 const Login = lazy(() => import('./pages/Login'));
 const NotFound = lazy(() => import('./pages/NotFound'));
-const MembershipPage = lazy(() => import('./pages/MembershipPage')); // Add new membership page
+const MembershipPage = lazy(() => import('./pages/MembershipPage'));
 
 function App() {
   return (
@@ -30,7 +30,7 @@ function App() {
         <ThemeProvider>
           <CssBaseline />
           <AuthProvider>
-            <AdProvider> {/* Add AdProvider here */}
+            <AdProvider>
               <SongDataProvider>
                 <AccessibilityProvider>
                   <Router>
@@ -39,7 +39,7 @@ function App() {
                         <Route path="/" element={<Home />} />
                         <Route path="/songs" element={<SongBrowser />} />
                         <Route path="/songs/:songId" element={<SongDetails />} />
-                        <Route path="/membership" element={<MembershipPage />} /> {/* New route */}
+                        <Route path="/membership" element={<MembershipPage />} />
                         <Route 
                           path="/admin" 
                           element={
