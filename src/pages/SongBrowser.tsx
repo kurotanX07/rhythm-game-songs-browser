@@ -175,15 +175,36 @@ const SongBrowser: React.FC = () => {
       <Header />
       <ResponsiveLayout>
         <Container maxWidth="lg">
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h5" component="h1">
-              楽曲一覧
-            </Typography>
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            mb: 2, 
+            flexWrap: 'wrap',
+            gap: 1
+          }}>
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 2
+            }}>
+              <Typography variant="h5" component="h1" sx={{
+                fontSize: isMobile ? '1.1rem' : '1.25rem',
+                fontWeight: 'medium',
+                whiteSpace: 'nowrap'
+              }}>
+                楽曲一覧
+              </Typography>
+              
+              {loading && (
+                <CircularProgress size={20} thickness={5} sx={{ ml: 1 }} />
+              )}
+            </Box>
             
             <GameSelector 
               games={games} 
               selectedGameId={selectedGameId} 
-              onGameSelect={handleGameSelect} 
+              onGameSelect={handleGameSelect}
             />
           </Box>
           

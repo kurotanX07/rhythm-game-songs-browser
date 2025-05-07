@@ -498,23 +498,23 @@ const SongList: React.FC<SongListProps> = ({
       
       {/* Display Settings - Improved spacing */}
       <Paper sx={{ 
-        p: isMobile ? 1.5 : 2, 
+        p: 1.5, 
         mb: 2, 
         borderRadius: 2,
-        boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
       }}>
         <Box sx={{ 
           display: 'flex', 
           justifyContent: 'space-between', 
           alignItems: 'center', 
           flexWrap: 'wrap',
-          gap: 2
+          gap: 1,
+          mb: showColumnSettings ? 1 : 0
         }}>
           <Box sx={{ 
             display: 'flex', 
             alignItems: 'center', 
-            mr: 2,
-            p: 1,
+            p: 0.5,
             borderRadius: 1,
             '&:hover': {
               bgcolor: 'action.hover'
@@ -524,106 +524,23 @@ const SongList: React.FC<SongListProps> = ({
               onClick={toggleColumnSettings} 
               color={showColumnSettings ? "primary" : "default"} 
               size="small"
-              sx={{
-                p: isMobile ? 0.75 : 1
-              }}
+              sx={{ p: 0.5 }}
             >
-              <ViewColumnIcon sx={{ fontSize: isMobile ? '1.3rem' : '1.5rem' }} />
+              <ViewColumnIcon sx={{ fontSize: isMobile ? '1.1rem' : '1.3rem' }} />
             </IconButton>
-            <Typography variant="body1" sx={{ 
-              ml: 1, 
-              fontSize: isMobile ? '0.8rem' : '0.9rem',
-              fontWeight: 'medium'
-            }}>
+            <Typography variant="body2" sx={{ ml: 0.5, fontSize: isMobile ? '0.75rem' : '0.8rem' }}>
               表示項目
             </Typography>
           </Box>
           
-          {/* MODIFIED: Font size adjustment slider - Made wider and more touch-friendly */}
-          <Box sx={{ 
-            display: 'flex', 
-            alignItems: 'center', 
-            flexGrow: 1, 
-            width: '100%',
-            mt: isMobile ? 1 : 0, 
-            mb: isMobile ? 1 : 0,
-            order: isMobile ? 3 : 2,
-            px: 2,
-            py: 1,
-            borderRadius: 1,
-            bgcolor: 'background.default'
-          }}>
-            <Box sx={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              minWidth: isMobile ? '85px' : '120px',
-              mr: 2
-            }}>
-              <FormatSizeIcon sx={{ 
-                mr: 1.5, 
-                color: 'primary.main', 
-                fontSize: isMobile ? '1.3rem' : '1.5rem' 
-              }} />
-              <Typography variant="body1" sx={{ 
-                fontSize: isMobile ? '0.8rem' : '0.9rem',
-                fontWeight: 'medium'
-              }}>
-                文字サイズ:
-              </Typography>
-            </Box>
-            
-            {/* Improved slider with more width */}
-            <Slider
-              value={fontSize}
-              onChange={handleFontSizeChange}
-              min={8}
-              max={16}
-              step={1}
-              valueLabelDisplay="auto"
-              sx={{ 
-                flex: 1,  /* Take all available space */
-                minWidth: isMobile ? '200px' : '250px',
-                '& .MuiSlider-thumb': {
-                  width: isMobile ? 24 : 20,
-                  height: isMobile ? 24 : 20,
-                },
-                '& .MuiSlider-rail, & .MuiSlider-track': {
-                  height: isMobile ? 6 : 4,
-                },
-                '& .MuiSlider-valueLabel': {
-                  fontSize: '0.9rem',
-                  padding: '2px 6px',
-                  fontWeight: 'bold'
-                }
-              }}
-            />
-            
-            {/* Current font size display */}
-            <Typography variant="body1" sx={{ 
-              ml: 2, 
-              minWidth: '40px', 
-              textAlign: 'center',
-              fontSize: '1rem',
-              fontWeight: 'bold',
-              color: 'primary.main',
-              bgcolor: 'action.selected',
-              px: 1,
-              py: 0.5,
-              borderRadius: 1
-            }}>
-              {fontSize}px
-            </Typography>
-          </Box>
-          
           <FormControl size="small" sx={{ 
-            minWidth: 140, 
-            mt: isMobile ? 1 : 0,
-            order: isMobile ? 2 : 3,
+            width: isMobile ? '110px' : '120px',
             '& .MuiInputLabel-root': {
-              fontSize: isMobile ? '0.8rem' : '0.9rem'
+              fontSize: isMobile ? '0.7rem' : '0.75rem'
             },
             '& .MuiSelect-select': {
-              fontSize: isMobile ? '0.8rem' : '0.9rem'
+              fontSize: isMobile ? '0.7rem' : '0.75rem',
+              py: 0.75
             }
           }}>
             <InputLabel id="density-select-label">表示密度</InputLabel>
@@ -633,107 +550,232 @@ const SongList: React.FC<SongListProps> = ({
               onChange={handleDensityChange}
               label="表示密度"
             >
-              <MenuItem value="compact" sx={{ fontSize: isMobile ? '0.8rem' : '0.9rem' }}>コンパクト</MenuItem>
-              <MenuItem value="comfortable" sx={{ fontSize: isMobile ? '0.8rem' : '0.9rem' }}>標準</MenuItem>
-              <MenuItem value="spacious" sx={{ fontSize: isMobile ? '0.8rem' : '0.9rem' }}>広め</MenuItem>
-              <MenuItem value="very-spacious" sx={{ fontSize: isMobile ? '0.8rem' : '0.9rem' }}>さらに広め</MenuItem>
+              <MenuItem value="compact" sx={{ fontSize: isMobile ? '0.7rem' : '0.75rem' }}>コンパクト</MenuItem>
+              <MenuItem value="comfortable" sx={{ fontSize: isMobile ? '0.7rem' : '0.75rem' }}>標準</MenuItem>
+              <MenuItem value="spacious" sx={{ fontSize: isMobile ? '0.7rem' : '0.75rem' }}>広め</MenuItem>
+              <MenuItem value="very-spacious" sx={{ fontSize: isMobile ? '0.7rem' : '0.75rem' }}>さらに広め</MenuItem>
             </Select>
           </FormControl>
         </Box>
+      
+        {/* Font size adjustment - horizontal compact layout */}
+        <Box sx={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          px: 0.5,
+          py: 0.75,
+          mx: 0.5,
+          mt: 0.5,
+          borderRadius: 1,
+          bgcolor: 'background.default'
+        }}>
+          <FormatSizeIcon sx={{ 
+            color: 'primary.main', 
+            fontSize: isMobile ? '1.1rem' : '1.2rem',
+            mr: 1
+          }} />
+          <Typography variant="body2" sx={{ 
+            fontSize: isMobile ? '0.75rem' : '0.8rem',
+            minWidth: '50px'
+          }}>
+            文字:
+          </Typography>
+          
+          <Slider
+            value={fontSize}
+            onChange={handleFontSizeChange}
+            min={8}
+            max={16}
+            step={1}
+            valueLabelDisplay="auto"
+            sx={{ 
+              flex: 1,
+              mx: 1,
+              '& .MuiSlider-thumb': {
+                width: isMobile ? 16 : 14,
+                height: isMobile ? 16 : 14,
+              },
+              '& .MuiSlider-rail, & .MuiSlider-track': {
+                height: 2,
+              }
+            }}
+          />
+          
+          <Typography variant="body2" sx={{ 
+            ml: 0.5, 
+            minWidth: '26px', 
+            textAlign: 'center',
+            fontSize: '0.8rem',
+            fontWeight: 'medium',
+            color: 'primary.main',
+            bgcolor: 'action.selected',
+            px: 0.75,
+            py: 0.25,
+            borderRadius: 0.75
+          }}>
+            {fontSize}
+          </Typography>
+        </Box>
         
-        {/* Column Settings Panel - Improved UI */}
+        {/* Column Settings Panel - compact grid layout */}
         {showColumnSettings && (
           <Box sx={{ 
-            mt: 2, 
-            p: 2, 
+            mt: 1, 
+            p: 1, 
             borderTop: 1, 
             borderColor: 'divider',
             borderRadius: '0 0 8px 8px',
             bgcolor: 'background.default'
           }}>
-            <Typography variant="body1" gutterBottom sx={{ 
-              fontSize: isMobile ? '0.8rem' : '0.9rem',
-              fontWeight: 'medium',
-              mb: 1.5
-            }}>
-              表示する項目を選択:
-            </Typography>
-            <Box sx={{ 
-              display: 'flex', 
-              flexWrap: 'wrap',
-              gap: 2
-            }}>
-              <FormControlLabel
-                control={<Switch size="small" checked={columnVisibility.artist} onChange={() => handleColumnChange('artist')} />}
-                label="アーティスト"
-                sx={{ 
-                  '& .MuiFormControlLabel-label': { 
-                    fontSize: isMobile ? '0.8rem' : '0.9rem' 
-                  },
-                  minWidth: '130px'
-                }}
-              />
-              <FormControlLabel
-                control={<Switch size="small" checked={columnVisibility.lyricist} onChange={() => handleColumnChange('lyricist')} />}
-                label="作詞"
-                sx={{ 
-                  '& .MuiFormControlLabel-label': { 
-                    fontSize: isMobile ? '0.8rem' : '0.9rem' 
-                  },
-                  minWidth: '100px'
-                }}
-              />
-              <FormControlLabel
-                control={<Switch size="small" checked={columnVisibility.composer} onChange={() => handleColumnChange('composer')} />}
-                label="作曲"
-                sx={{ 
-                  '& .MuiFormControlLabel-label': { 
-                    fontSize: isMobile ? '0.8rem' : '0.9rem' 
-                  },
-                  minWidth: '100px'
-                }}
-              />
-              <FormControlLabel
-                control={<Switch size="small" checked={columnVisibility.arranger} onChange={() => handleColumnChange('arranger')} />}
-                label="編曲"
-                sx={{ 
-                  '& .MuiFormControlLabel-label': { 
-                    fontSize: isMobile ? '0.8rem' : '0.9rem' 
-                  },
-                  minWidth: '100px'
-                }}
-              />
-              <FormControlLabel
-                control={<Switch size="small" checked={columnVisibility.duration} onChange={() => handleColumnChange('duration')} />}
-                label="再生時間"
-                sx={{ 
-                  '& .MuiFormControlLabel-label': { 
-                    fontSize: isMobile ? '0.8rem' : '0.9rem' 
-                  },
-                  minWidth: '130px'
-                }}
-              />
-              <FormControlLabel
-                control={<Switch size="small" checked={columnVisibility.bpm} onChange={() => handleColumnChange('bpm')} />}
-                label="BPM"
-                sx={{ 
-                  '& .MuiFormControlLabel-label': { 
-                    fontSize: isMobile ? '0.8rem' : '0.9rem' 
-                  },
-                  minWidth: '100px'
-                }}
-              />
-              <FormControlLabel
-                control={<Switch size="small" checked={columnVisibility.addedDate} onChange={() => handleColumnChange('addedDate')} />}
-                label="追加日"
-                sx={{ 
-                  '& .MuiFormControlLabel-label': { 
-                    fontSize: isMobile ? '0.8rem' : '0.9rem' 
-                  },
-                  minWidth: '100px'
-                }}
-              />
-            </Box>
+            <Grid container spacing={0.5}>
+              <Grid item xs={6} sm={4} md={3}>
+                <FormControlLabel
+                  control={<Switch size="small" checked={columnVisibility.artist} onChange={() => handleColumnChange('artist')} />}
+                  label="アーティスト"
+                  sx={{ 
+                    m: 0,
+                    '& .MuiFormControlLabel-label': { 
+                      fontSize: isMobile ? '0.7rem' : '0.75rem' 
+                    },
+                    '& .MuiSwitch-root': {
+                      mr: 0.5,
+                      width: '32px',
+                      height: '20px',
+                      '& .MuiSwitch-thumb': {
+                        width: 12,
+                        height: 12
+                      }
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={6} sm={4} md={3}>
+                <FormControlLabel
+                  control={<Switch size="small" checked={columnVisibility.bpm} onChange={() => handleColumnChange('bpm')} />}
+                  label="BPM"
+                  sx={{ 
+                    m: 0,
+                    '& .MuiFormControlLabel-label': { 
+                      fontSize: isMobile ? '0.7rem' : '0.75rem' 
+                    },
+                    '& .MuiSwitch-root': {
+                      mr: 0.5,
+                      width: '32px',
+                      height: '20px',
+                      '& .MuiSwitch-thumb': {
+                        width: 12,
+                        height: 12
+                      }
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={6} sm={4} md={3}>
+                <FormControlLabel
+                  control={<Switch size="small" checked={columnVisibility.duration} onChange={() => handleColumnChange('duration')} />}
+                  label="時間"
+                  sx={{ 
+                    m: 0,
+                    '& .MuiFormControlLabel-label': { 
+                      fontSize: isMobile ? '0.7rem' : '0.75rem' 
+                    },
+                    '& .MuiSwitch-root': {
+                      mr: 0.5,
+                      width: '32px',
+                      height: '20px',
+                      '& .MuiSwitch-thumb': {
+                        width: 12,
+                        height: 12
+                      }
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={6} sm={4} md={3}>
+                <FormControlLabel
+                  control={<Switch size="small" checked={columnVisibility.addedDate} onChange={() => handleColumnChange('addedDate')} />}
+                  label="追加日"
+                  sx={{ 
+                    m: 0,
+                    '& .MuiFormControlLabel-label': { 
+                      fontSize: isMobile ? '0.7rem' : '0.75rem' 
+                    },
+                    '& .MuiSwitch-root': {
+                      mr: 0.5,
+                      width: '32px',
+                      height: '20px',
+                      '& .MuiSwitch-thumb': {
+                        width: 12,
+                        height: 12
+                      }
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={6} sm={4} md={3}>
+                <FormControlLabel
+                  control={<Switch size="small" checked={columnVisibility.lyricist} onChange={() => handleColumnChange('lyricist')} />}
+                  label="作詞"
+                  sx={{ 
+                    m: 0,
+                    '& .MuiFormControlLabel-label': { 
+                      fontSize: isMobile ? '0.7rem' : '0.75rem' 
+                    },
+                    '& .MuiSwitch-root': {
+                      mr: 0.5,
+                      width: '32px',
+                      height: '20px',
+                      '& .MuiSwitch-thumb': {
+                        width: 12,
+                        height: 12
+                      }
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={6} sm={4} md={3}>
+                <FormControlLabel
+                  control={<Switch size="small" checked={columnVisibility.composer} onChange={() => handleColumnChange('composer')} />}
+                  label="作曲"
+                  sx={{ 
+                    m: 0,
+                    '& .MuiFormControlLabel-label': { 
+                      fontSize: isMobile ? '0.7rem' : '0.75rem' 
+                    },
+                    '& .MuiSwitch-root': {
+                      mr: 0.5,
+                      width: '32px',
+                      height: '20px',
+                      '& .MuiSwitch-thumb': {
+                        width: 12,
+                        height: 12
+                      }
+                    }
+                  }}
+                />
+              </Grid>
+              <Grid item xs={6} sm={4} md={3}>
+                <FormControlLabel
+                  control={<Switch size="small" checked={columnVisibility.arranger} onChange={() => handleColumnChange('arranger')} />}
+                  label="編曲"
+                  sx={{ 
+                    m: 0,
+                    '& .MuiFormControlLabel-label': { 
+                      fontSize: isMobile ? '0.7rem' : '0.75rem' 
+                    },
+                    '& .MuiSwitch-root': {
+                      mr: 0.5,
+                      width: '32px',
+                      height: '20px',
+                      '& .MuiSwitch-thumb': {
+                        width: 12,
+                        height: 12
+                      }
+                    }
+                  }}
+                />
+              </Grid>
+            </Grid>
           </Box>
         )}
       </Paper>

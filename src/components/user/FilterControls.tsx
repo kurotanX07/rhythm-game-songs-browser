@@ -182,89 +182,85 @@ const FilterControls: React.FC<FilterControlsProps> = ({
   
   return (
     <Paper sx={{ mb: 2, overflow: 'hidden' }}>
-      {/* Search bar and filter expansion toggle */}
+      {/* Compact search bar and filter controls layout */}
       <Box sx={{ 
-        p: isMobile ? 1 : 1.5, 
+        p: isMobile ? 0.5 : 0.75, 
         display: 'flex', 
         alignItems: 'center',
         borderBottom: expanded ? 1 : 0,
-        borderColor: 'divider'
+        borderColor: 'divider',
+        gap: 0.5
       }}>
         <TextField
           fullWidth
-          label="楽曲名・アーティスト名で検索"
+          placeholder="曲名・アーティスト名で検索"
           value={searchText}
           onChange={handleSearchChange}
           variant="outlined"
           size="small"
           sx={{ 
-            mr: 1,
             '& .MuiInputBase-input': {
               fontSize: isMobile ? '0.8rem' : '0.875rem',
-              padding: isMobile ? '8px 10px' : '10px 14px',
+              padding: isMobile ? '6px 8px' : '8px 10px',
+              height: isMobile ? '20px' : '24px',
             },
-            '& .MuiInputLabel-root': {
-              fontSize: isMobile ? '0.8rem' : '0.875rem',
-              transform: isMobile ? 'translate(10px, 9px) scale(1)' : undefined,
-              '&.MuiInputLabel-shrink': {
-                transform: isMobile ? 'translate(10px, -6px) scale(0.75)' : undefined,
-              }
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 1
             }
+          }}
+          InputProps={{
+            startAdornment: 
+              <Tooltip title="お気に入りのみ">
+                <Checkbox
+                  icon={<FavoriteIcon />}
+                  checkedIcon={<FavoriteIcon />}
+                  checked={favoritesOnly}
+                  onChange={handleFavoritesOnlyChange}
+                  color="secondary"
+                  sx={{
+                    p: 0.5,
+                    mr: 0.5,
+                    ml: -0.5,
+                    color: favoritesOnly ? 'secondary.main' : 'rgba(0, 0, 0, 0.3)',
+                    '& .MuiSvgIcon-root': {
+                      fontSize: isMobile ? '1rem' : '1.2rem'
+                    }
+                  }}
+                />
+              </Tooltip>
           }}
         />
         
-        {/* Favorites checkbox and filter button in one line */}
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
-          <Tooltip title="お気に入りのみ">
-            <Checkbox
-              icon={<FavoriteIcon />}
-              checkedIcon={<FavoriteIcon />}
-              checked={favoritesOnly}
-              onChange={handleFavoritesOnlyChange}
-              color="secondary"
-              sx={{
-                mr: 0.5,
-                color: favoritesOnly ? 'secondary.main' : 'rgba(0, 0, 0, 0.3)',
-                '&.Mui-checked': {
-                  color: 'secondary.main',
-                },
-                padding: isMobile ? '4px' : '8px',
-                '& .MuiSvgIcon-root': {
-                  fontSize: isMobile ? '1.2rem' : '1.5rem'
-                }
-              }}
-            />
-          </Tooltip>
-          
-          <IconButton
-            onClick={toggleExpanded}
-            color="primary"
-            size="small"
-            sx={{ 
-              padding: isMobile ? '4px' : '8px',
-              borderRadius: '4px',
-              bgcolor: 'rgba(63, 81, 181, 0.08)',
-              '&:hover': {
-                bgcolor: 'rgba(63, 81, 181, 0.12)'
-              }
-            }}
-          >
-            {expanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-          </IconButton>
-        </Box>
+        <IconButton
+          onClick={toggleExpanded}
+          color="primary"
+          size="small"
+          sx={{ 
+            p: 0.75,
+            minWidth: '28px',
+            height: '28px',
+            borderRadius: '4px',
+            bgcolor: 'rgba(63, 81, 181, 0.08)',
+            '&:hover': {
+              bgcolor: 'rgba(63, 81, 181, 0.12)'
+            }
+          }}
+        >
+          {expanded ? <ExpandLessIcon fontSize="small" /> : <ExpandMoreIcon fontSize="small" />}
+        </IconButton>
       </Box>
       
-      {/* Expanded filter panel - reimagined for mobile */}
+      {/* Compact expanded filter panel */}
       <Collapse in={expanded}>
-        <Box sx={{ p: isMobile ? 1 : 1.5, pt: 0.5 }}>
+        <Box sx={{ p: isMobile ? 0.75 : 1, pt: 0.5 }}>
           {/* Title and clear button */}
           <Box sx={{ 
             display: 'flex', 
             justifyContent: 'space-between', 
             alignItems: 'center', 
-            mb: isMobile ? 0.5 : 1 
+            mb: 0.5
           }}>
-            <Typography variant="subtitle2" sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}>
+            <Typography variant="subtitle2" sx={{ fontSize: isMobile ? '0.7rem' : '0.75rem' }}>
               フィルター設定
             </Typography>
             
@@ -273,10 +269,10 @@ const FilterControls: React.FC<FilterControlsProps> = ({
               variant="text" 
               color="inherit"
               onClick={handleClearAllFilters}
-              startIcon={<ClearIcon sx={{ fontSize: isMobile ? '0.9rem' : '1rem' }} />}
+              startIcon={<ClearIcon sx={{ fontSize: isMobile ? '0.8rem' : '0.9rem' }} />}
               sx={{ 
                 fontSize: isMobile ? '0.65rem' : '0.7rem',
-                padding: '2px 6px',
+                padding: '1px 4px',
                 minWidth: 'auto'
               }}
             >
@@ -284,21 +280,25 @@ const FilterControls: React.FC<FilterControlsProps> = ({
             </Button>
           </Box>
           
-          {/* Mobile optimized grid layout */}
+          {/* Compact grid layout with no wasted space */}
           <Grid container spacing={1} sx={{ mb: 0.5 }}>
-            {/* Difficulty select - 50% width on mobile */}
-            <Grid item xs={6} sm={4}>
+            <Grid item xs={6} sm={3}>
               <FormControl fullWidth size="small" sx={{ 
                 '& .MuiInputLabel-root': {
-                  fontSize: isMobile ? '0.7rem' : '0.8rem',
-                  transform: isMobile ? 'translate(10px, 8px) scale(1)' : undefined,
+                  fontSize: isMobile ? '0.7rem' : '0.75rem',
+                  transform: isMobile ? 'translate(8px, 8px) scale(1)' : undefined,
                   '&.MuiInputLabel-shrink': {
-                    transform: isMobile ? 'translate(10px, -6px) scale(0.75)' : undefined,
+                    transform: isMobile ? 'translate(8px, -6px) scale(0.75)' : undefined,
                   }
                 },
                 '& .MuiSelect-select': {
-                  fontSize: isMobile ? '0.7rem' : '0.8rem',
-                  padding: isMobile ? '5px 10px' : '8px 14px',
+                  fontSize: isMobile ? '0.7rem' : '0.75rem',
+                  padding: isMobile ? '4px 8px' : '6px 10px',
+                  minHeight: 'unset !important',
+                  lineHeight: '1.2'
+                },
+                '& .MuiOutlinedInput-root': {
+                  borderRadius: 1
                 }
               }}>
                 <InputLabel id="difficulty-select-label">難易度</InputLabel>
@@ -308,13 +308,13 @@ const FilterControls: React.FC<FilterControlsProps> = ({
                   label="難易度"
                   onChange={handleDifficultyChange}
                 >
-                  <MenuItem value="ALL" sx={{ fontSize: isMobile ? '0.7rem' : '0.8rem' }}>すべて</MenuItem>
+                  <MenuItem value="ALL" sx={{ fontSize: isMobile ? '0.7rem' : '0.75rem' }}>すべて</MenuItem>
                   {difficulties.map(diff => (
-                    <MenuItem key={diff.id} value={diff.id} sx={{ fontSize: isMobile ? '0.7rem' : '0.8rem' }}>
+                    <MenuItem key={diff.id} value={diff.id} sx={{ fontSize: isMobile ? '0.7rem' : '0.75rem' }}>
                       <Box component="span" sx={{ 
                         display: 'inline-block',
-                        width: 10,
-                        height: 10,
+                        width: 8,
+                        height: 8,
                         borderRadius: '50%',
                         bgcolor: diff.color,
                         mr: 1
@@ -326,8 +326,7 @@ const FilterControls: React.FC<FilterControlsProps> = ({
               </FormControl>
             </Grid>
             
-            {/* Favorites checkbox - 50% width on mobile */}
-            <Grid item xs={6} sm={4}>
+            <Grid item xs={6} sm={3}>
               <FormControlLabel
                 control={
                   <Checkbox 
@@ -335,6 +334,7 @@ const FilterControls: React.FC<FilterControlsProps> = ({
                     onChange={handleFavoritesOnlyChange}
                     color="secondary"
                     size="small"
+                    sx={{ p: 0.5 }}
                   />
                 }
                 label="お気に入りのみ"
@@ -344,26 +344,45 @@ const FilterControls: React.FC<FilterControlsProps> = ({
                   display: 'flex',
                   alignItems: 'center',
                   '& .MuiFormControlLabel-label': {
-                    fontSize: isMobile ? '0.7rem' : '0.8rem'
+                    fontSize: isMobile ? '0.7rem' : '0.75rem'
                   }
                 }}
               />
             </Grid>
             
-            {/* Level range - full width */}
+            <Grid item xs={12} sm={6}>
+              <TextField
+                fullWidth
+                placeholder="タグ入力 (Enter で追加)"
+                value={tag}
+                onChange={handleTagInputChange}
+                onKeyDown={handleTagInputKeyDown}
+                variant="outlined"
+                size="small"
+                sx={{
+                  '& .MuiInputBase-input': {
+                    fontSize: isMobile ? '0.7rem' : '0.75rem',
+                    padding: isMobile ? '4px 8px' : '6px 10px',
+                    height: isMobile ? '16px' : '20px',
+                  },
+                  '& .MuiOutlinedInput-root': {
+                    borderRadius: 1
+                  }
+                }}
+              />
+            </Grid>
+            
+            {/* Level range - compact slider */}
             <Grid item xs={12}>
               <Box sx={{ px: 1 }}>
                 <Box sx={{ 
                   display: 'flex', 
                   justifyContent: 'space-between', 
                   alignItems: 'center',
-                  mb: 0.5
+                  mb: 0.25
                 }}>
                   <Typography variant="caption" sx={{ fontSize: isMobile ? '0.65rem' : '0.7rem' }}>
-                    レベル範囲:
-                  </Typography>
-                  <Typography variant="caption" sx={{ fontSize: isMobile ? '0.65rem' : '0.7rem' }}>
-                    {levelRange[0]} - {levelRange[1]}
+                    レベル範囲: {levelRange[0]} - {levelRange[1]}
                   </Typography>
                 </Box>
                 <Slider
@@ -381,44 +400,24 @@ const FilterControls: React.FC<FilterControlsProps> = ({
                     '& .MuiSlider-markLabel': {
                       fontSize: isMobile ? '0.6rem' : '0.65rem'
                     },
-                    // スライダーを操作しやすく
                     '& .MuiSlider-thumb': {
-                      width: isMobile ? 16 : 12,
-                      height: isMobile ? 16 : 12,
+                      width: isMobile ? 14 : 12,
+                      height: isMobile ? 14 : 12,
                     },
                     '& .MuiSlider-rail, & .MuiSlider-track': {
-                      height: isMobile ? 4 : 2,
+                      height: 2,
                     },
-                    pt: 1,
+                    pt: 0.5,
                     pb: 0
                   }}
                 />
               </Box>
             </Grid>
-            
-            {/* Tag input - full width */}
-            <Grid item xs={12}>
-              <TextField
-                fullWidth
-                placeholder="タグ入力 (Enter で追加)"
-                value={tag}
-                onChange={handleTagInputChange}
-                onKeyDown={handleTagInputKeyDown}
-                variant="outlined"
-                size="small"
-                sx={{
-                  '& .MuiInputBase-input': {
-                    fontSize: isMobile ? '0.7rem' : '0.75rem',
-                    padding: isMobile ? '6px 10px' : '8px 14px',
-                  }
-                }}
-              />
-            </Grid>
           </Grid>
           
-          {/* Tags display - if any exist */}
+          {/* Tags display - compact chips */}
           {tags.length > 0 && (
-            <Box sx={{ mt: 0.5, ml: 0.5, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            <Box sx={{ mt: 0.5, display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
               {tags.map((tag) => (
                 <Chip
                   key={tag}
@@ -429,14 +428,14 @@ const FilterControls: React.FC<FilterControlsProps> = ({
                   variant="outlined"
                   sx={{ 
                     fontSize: isMobile ? '0.65rem' : '0.7rem',
-                    height: isMobile ? '18px' : '24px',
+                    height: isMobile ? '16px' : '20px',
                     '& .MuiChip-label': {
                       px: 0.5,
                       paddingLeft: 0.5,
                       paddingRight: 0.5
                     },
                     '& .MuiChip-deleteIcon': {
-                      fontSize: isMobile ? '0.75rem' : '0.85rem',
+                      fontSize: isMobile ? '0.7rem' : '0.8rem',
                       margin: '0 2px 0 -4px'
                     }
                   }}
@@ -455,7 +454,7 @@ const FilterControls: React.FC<FilterControlsProps> = ({
                   deleteIcon={<ClearIcon fontSize="small" />}
                   sx={{ 
                     fontSize: isMobile ? '0.65rem' : '0.7rem',
-                    height: isMobile ? '18px' : '24px',
+                    height: isMobile ? '16px' : '20px',
                     '& .MuiChip-label': {
                       px: 0.5
                     }
