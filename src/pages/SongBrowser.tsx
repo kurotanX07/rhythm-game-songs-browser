@@ -200,8 +200,18 @@ const SongBrowser: React.FC = () => {
         {showAds && <AdComponent size="banner" position="top" />}
         
         <Container maxWidth="lg">
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-            <Typography variant="h5" component="h1">
+          <Box sx={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            mb: isMobile ? 0.75 : 1,
+            mt: isMobile ? -0.5 : 0
+          }}>
+            <Typography 
+              variant={isMobile ? "subtitle1" : "h5"} 
+              component="h1" 
+              sx={{ fontSize: isMobile ? '1.1rem' : '1.5rem' }}
+            >
               楽曲一覧
             </Typography>
             

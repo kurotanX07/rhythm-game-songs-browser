@@ -9,6 +9,7 @@ interface AuthContextType {
   currentUser: User | null;
   loading: boolean;
   isAdmin: boolean;
+  isPremium: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<void>;
@@ -32,6 +33,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  const [isPremium, setIsPremium] = useState<boolean>(false);
   
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -41,8 +43,11 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
         // ユーザーがadmin権限を持っているか確認
         const token = await user.getIdTokenResult();
         setIsAdmin(!!token.claims.admin);
+        // ユーザーがpremium権限を持っているか確認
+        setIsPremium(!!token.claims.premium);
       } else {
         setIsAdmin(false);
+        setIsPremium(false);
       }
       
       setLoading(false);
@@ -70,6 +75,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
     currentUser,
     loading,
     isAdmin,
+    isPremium,
     signIn,
     signOut,
     resetPassword

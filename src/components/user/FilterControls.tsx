@@ -181,15 +181,15 @@ const FilterControls: React.FC<FilterControlsProps> = ({
   };
   
   return (
-    <Paper sx={{ mb: 2, overflow: 'hidden' }}>
+    <Paper sx={{ mb: isMobile ? 1 : 1.5, overflow: 'hidden', boxShadow: 'none', border: '1px solid', borderColor: 'divider' }}>
       {/* Compact search bar and filter controls layout */}
       <Box sx={{ 
-        p: isMobile ? 0.5 : 0.75, 
+        p: isMobile ? '2px 4px' : '4px 6px', 
         display: 'flex', 
         alignItems: 'center',
         borderBottom: expanded ? 1 : 0,
         borderColor: 'divider',
-        gap: 0.5
+        gap: isMobile ? 0.25 : 0.5
       }}>
         <TextField
           fullWidth
@@ -200,9 +200,9 @@ const FilterControls: React.FC<FilterControlsProps> = ({
           size="small"
           sx={{ 
             '& .MuiInputBase-input': {
-              fontSize: isMobile ? '0.8rem' : '0.875rem',
-              padding: isMobile ? '6px 8px' : '8px 10px',
-              height: isMobile ? '20px' : '24px',
+              fontSize: isMobile ? '0.75rem' : '0.875rem',
+              padding: isMobile ? '4px 6px' : '6px 8px',
+              height: isMobile ? '18px' : '24px',
             },
             '& .MuiOutlinedInput-root': {
               borderRadius: 1
@@ -236,9 +236,9 @@ const FilterControls: React.FC<FilterControlsProps> = ({
           color="primary"
           size="small"
           sx={{ 
-            p: 0.75,
-            minWidth: '28px',
-            height: '28px',
+            p: isMobile ? 0.5 : 0.75,
+            minWidth: isMobile ? '24px' : '28px',
+            height: isMobile ? '24px' : '28px',
             borderRadius: '4px',
             bgcolor: 'rgba(63, 81, 181, 0.08)',
             '&:hover': {
@@ -252,7 +252,7 @@ const FilterControls: React.FC<FilterControlsProps> = ({
       
       {/* Compact expanded filter panel */}
       <Collapse in={expanded}>
-        <Box sx={{ p: isMobile ? 0.75 : 1, pt: 0.5 }}>
+        <Box sx={{ p: isMobile ? '3px 4px' : '4px 6px' }}>
           {/* Title and clear button */}
           <Box sx={{ 
             display: 'flex', 
@@ -280,8 +280,8 @@ const FilterControls: React.FC<FilterControlsProps> = ({
             </Button>
           </Box>
           
-          {/* Compact grid layout with no wasted space */}
-          <Grid container spacing={1} sx={{ mb: 0.5 }}>
+          {/* Ultra-compact grid layout with no wasted space */}
+          <Grid container spacing={isMobile ? 0.5 : 0.75} sx={{ mb: 0.5 }}>
             <Grid item xs={6} sm={3}>
               <FormControl fullWidth size="small" sx={{ 
                 '& .MuiInputLabel-root': {
@@ -372,14 +372,14 @@ const FilterControls: React.FC<FilterControlsProps> = ({
               />
             </Grid>
             
-            {/* Level range - compact slider */}
+            {/* Level range - ultra compact slider */}
             <Grid item xs={12}>
-              <Box sx={{ px: 1 }}>
+              <Box sx={{ px: isMobile ? 0.5 : 0.75 }}>
                 <Box sx={{ 
                   display: 'flex', 
                   justifyContent: 'space-between', 
                   alignItems: 'center',
-                  mb: 0.25
+                  mb: isMobile ? 0 : 0.25
                 }}>
                   <Typography variant="caption" sx={{ fontSize: isMobile ? '0.65rem' : '0.7rem' }}>
                     レベル範囲: {levelRange[0]} - {levelRange[1]}
@@ -407,8 +407,9 @@ const FilterControls: React.FC<FilterControlsProps> = ({
                     '& .MuiSlider-rail, & .MuiSlider-track': {
                       height: 2,
                     },
-                    pt: 0.5,
-                    pb: 0
+                    pt: isMobile ? 0 : 0.5,
+                    pb: 0,
+                    mt: isMobile ? -0.5 : 0
                   }}
                 />
               </Box>
