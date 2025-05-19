@@ -53,19 +53,25 @@ const Header: React.FC = () => {
   };
   
   return (
-    <AppBar position="static">
+    <AppBar 
+      position="static" 
+      sx={{
+        zIndex: (theme) => theme.zIndex.drawer + 1,
+        paddingTop: isMobile ? '32px' : 0,
+      }}
+    >
       <Toolbar sx={{ 
         minHeight: isMobile ? '48px !important' : '64px',
         padding: isMobile ? '0 8px !important' : '0 16px',
       }}>
-        {isMobile && (
+        {isMobile && ( // ハンバーガーメニューを再度左側に戻し、左マージンを追加
           <IconButton
-            edge="start"
             color="inherit"
             aria-label="menu"
             onClick={toggleDrawer(true)}
             sx={{ 
-              marginRight: 1, 
+              ml: 1, // 左マージンを追加して少し右に寄せる
+              mr: 1, // 右隣のタイトルとのマージンも確保
               padding: '8px',
               '& .MuiSvgIcon-root': {
                 fontSize: '1.5rem'
@@ -96,112 +102,94 @@ const Header: React.FC = () => {
         
         {!isMobile && (
           <Box sx={{ display: 'flex', gap: 2 }}>
-            <Button 
-              color="inherit" 
-              component={RouterLink} 
-              to="/"
-              startIcon={<HomeIcon />}
-            >
-              ホーム
-            </Button>
-            <Button 
-              color="inherit" 
-              component={RouterLink} 
-              to="/songs"
-              startIcon={<MusicNoteIcon />}
-            >
-              楽曲一覧
-            </Button>
-            {isAdmin && (
-              <Button 
-                color="inherit" 
-                component={RouterLink} 
-                to="/admin"
-                startIcon={<AdminPanelSettingsIcon />}
-              >
-                管理画面
-              </Button>
-            )}
+            <Button color="inherit" component={RouterLink} to="/" startIcon={<HomeIcon />}>ホーム</Button>
+            <Button color="inherit" component={RouterLink} to="/songs" startIcon={<MusicNoteIcon />}>楽曲一覧</Button>
+            {isAdmin && (<Button color="inherit" component={RouterLink} to="/admin" startIcon={<AdminPanelSettingsIcon />}>管理画面</Button>)}
           </Box>
         )}
         
-        {/* Theme Toggle Button */}
-        <Tooltip title={mode === 'light' ? 'ダークモード' : 'ライトモード'}>
-          <IconButton 
-            color="inherit" 
-            onClick={toggleColorMode}
-            sx={{ 
-              mr: 1,
-              padding: isMobile ? '8px' : '12px',
-              '& .MuiSvgIcon-root': {
-                fontSize: isMobile ? '1.25rem' : '1.5rem'
-              }
-            }}
-          >
-            {mode === 'light' ? <Brightness4Icon /> : <Brightness7Icon />}
-          </IconButton>
-        </Tooltip>
-        
-        {currentUser ? (
-          <Box>
-            <IconButton
-              aria-label="account of current user"
-              aria-controls="menu-appbar"
-              aria-haspopup="true"
-              onClick={handleMenu}
-              color="inherit"
+        {/* Group for right-aligned items */}
+        <Box sx={{ display: 'flex', alignItems: 'center', ml: 'auto' }}>
+          {/* Mobile Hamburger IconButton removed from here */}
+
+          {/* Theme Toggle Button */}
+          <Tooltip title={mode === 'light' ? 'ダークモード' : 'ライトモード'}>
+            <IconButton 
+              color="inherit" 
+              onClick={toggleColorMode}
               sx={{ 
-                padding: isMobile ? '4px' : '8px',
+                mr: 1,
+                padding: isMobile ? '8px' : '12px',
+                '& .MuiSvgIcon-root': {
+                  fontSize: isMobile ? '1.25rem' : '1.5rem'
+                }
               }}
             >
-              <Avatar 
-                alt={currentUser.displayName || undefined} 
-                src={currentUser.photoURL || undefined}
-                sx={{ width: isMobile ? 28 : 32, height: isMobile ? 28 : 32 }}
-              >
-                {!currentUser.photoURL && ((currentUser.displayName || currentUser.email || 'U')[0].toUpperCase())}
-              </Avatar>
+              {mode === 'light' ? <Brightness4Icon /> : <Brightness7Icon />}
             </IconButton>
-            <Menu
-              id="menu-appbar"
-              anchorEl={anchorEl}
-              anchorOrigin={{
-                vertical: 'bottom',
-                horizontal: 'right',
-              }}
-              keepMounted
-              transformOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-              open={Boolean(anchorEl)}
-              onClose={handleClose}
+          </Tooltip>
+          
+          {currentUser ? (
+            <Box>
+              <IconButton
+                aria-label="account of current user"
+                aria-controls="menu-appbar"
+                aria-haspopup="true"
+                onClick={handleMenu}
+                color="inherit"
+                sx={{ 
+                  padding: isMobile ? '4px' : '8px',
+                }}
+              >
+                <Avatar 
+                  alt={currentUser.displayName || undefined} 
+                  src={currentUser.photoURL || undefined}
+                  sx={{ width: isMobile ? 28 : 32, height: isMobile ? 28 : 32 }}
+                >
+                  {!currentUser.photoURL && ((currentUser.displayName || currentUser.email || 'U')[0].toUpperCase())}
+                </Avatar>
+              </IconButton>
+              <Menu
+                id="menu-appbar"
+                anchorEl={anchorEl}
+                anchorOrigin={{
+                  vertical: 'bottom',
+                  horizontal: 'right',
+                }}
+                keepMounted
+                transformOrigin={{
+                  vertical: 'top',
+                  horizontal: 'right',
+                }}
+                open={Boolean(anchorEl)}
+                onClose={handleClose}
+              >
+                <MenuItem onClick={handleClose}>
+                  <ListItemIcon>
+                    <AccountCircleIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText primary={currentUser.email} />
+                </MenuItem>
+                <Divider />
+                <MenuItem onClick={handleLogout}>
+                  <ListItemIcon>
+                    <LogoutIcon fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText primary="ログアウト" />
+                </MenuItem>
+              </Menu>
+            </Box>
+          ) : (
+            <Button 
+              color="inherit" 
+              component={RouterLink} 
+              to="/login"
+              sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}
             >
-              <MenuItem onClick={handleClose}>
-                <ListItemIcon>
-                  <AccountCircleIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText primary={currentUser.email} />
-              </MenuItem>
-              <Divider />
-              <MenuItem onClick={handleLogout}>
-                <ListItemIcon>
-                  <LogoutIcon fontSize="small" />
-                </ListItemIcon>
-                <ListItemText primary="ログアウト" />
-              </MenuItem>
-            </Menu>
-          </Box>
-        ) : (
-          <Button 
-            color="inherit" 
-            component={RouterLink} 
-            to="/login"
-            sx={{ fontSize: isMobile ? '0.75rem' : '0.875rem' }}
-          >
-            ログイン
-          </Button>
-        )}
+              ログイン
+            </Button>
+          )}
+        </Box> {/* End of group for right-aligned items */}
       </Toolbar>
       
       {/* Mobile Drawer - 幅を広げてタップしやすく */}
@@ -211,7 +199,10 @@ const Header: React.FC = () => {
         onClose={toggleDrawer(false)}
       >
         <Box
-          sx={{ width: 250 }}
+          sx={{ 
+            width: 250,
+            paddingTop: '32px', // ドロワー内のコンテンツ全体を下に下げる
+          }}
           role="presentation"
           onClick={toggleDrawer(false)}
           onKeyDown={toggleDrawer(false)}

@@ -1,12 +1,12 @@
 // src/components/user/SongList.tsx
-import React, { useMemo, useState, useCallback } from 'react';
+import React, { useMemo, useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Box, Typography, Chip, Grid, Table, TableBody, TableCell, 
-  TableContainer, TableHead, TableRow, Paper, Tooltip, 
-  IconButton, Pagination, FormControl, InputLabel, Select, 
+  Box, Typography, Chip, Grid, Table, TableBody, TableCell,
+  TableContainer, TableHead, TableRow, Paper, Tooltip,
+  IconButton, Pagination, FormControl, InputLabel, Select,
   MenuItem, SelectChangeEvent, Stack, Slider, Switch, FormControlLabel,
-  useMediaQuery, useTheme as useMuiTheme
+  useMediaQuery, useTheme as useMuiTheme, TextField
 } from '@mui/material';
 import YouTubeIcon from '@mui/icons-material/YouTube';
 import MusicNoteIcon from '@mui/icons-material/MusicNote';
@@ -57,6 +57,8 @@ const SongList: React.FC<SongListProps> = ({
   // Pagination state
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(50);
+  const [pageInput, setPageInput] = useState<string>(page.toString());
+  const [pageInputError, setPageInputError] = useState<string>('');
   
   // Sort order state
   const [sortField, setSortField] = useState<string>('songNo');
@@ -299,6 +301,29 @@ const SongList: React.FC<SongListProps> = ({
     return sortedSongs.slice(startIdx, startIdx + rowsPerPage);
   }, [sortedSongs, page, rowsPerPage]);
   
+  const totalPages = Math.ceil(filteredSongs.length / rowsPerPage);
+
+  useEffect(() => {
+    setPageInput(page.toString());
+    setPageInputError('');
+  }, [page]);
+
+  const handlePageInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setPageInput(event.target.value);
+    if (pageInputError) setPageInputError('');
+  };
+
+  const handlePageInputSubmit = () => {
+    const newPage = parseInt(pageInput, 10);
+    if (isNaN(newPage) || newPage < 1 || newPage > totalPages) {
+      setPageInputError(`1～${totalPages}で入力`);
+      setPageInput(page.toString());
+    } else {
+      setPage(newPage);
+      setPageInputError('');
+    }
+  };
+
   // Event handlers
   const handleChangePage = (_event: React.ChangeEvent<unknown>, newPage: number) => {
     setPage(newPage);
@@ -431,69 +456,19 @@ const SongList: React.FC<SongListProps> = ({
       {/* Improved top section with more space */}
       <Box sx={{ 
         display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
+        flexDirection: 'column',
         mb: isMobile ? 2 : 3,
         mt: isMobile ? 1 : 2,
-        flexWrap: 'wrap',
         gap: 1.5
       }}>
         <Typography variant="body1" sx={{ 
           fontWeight: 'medium',
-          fontSize: isMobile ? '0.9rem' : '1rem'
+          fontSize: isMobile ? '0.9rem' : '1rem',
+          whiteSpace: 'nowrap',
+          overflow: 'visible'
         }}>
           {filteredSongs.length}曲中 {(page - 1) * rowsPerPage + 1}-{Math.min(page * rowsPerPage, filteredSongs.length)}曲目を表示
         </Typography>
-        
-        <Box sx={{ 
-          display: 'flex', 
-          alignItems: 'center',
-          gap: 2,
-          flexWrap: isMobile ? 'wrap' : 'nowrap',
-          justifyContent: isMobile ? 'flex-end' : 'flex-start',
-          width: isMobile ? '100%' : 'auto'
-        }}>
-          <FormControl variant="outlined" size="small" sx={{ 
-            minWidth: isMobile ? '120px' : '150px',
-            '& .MuiInputLabel-root': {
-              fontSize: isMobile ? '0.8rem' : '0.9rem'
-            },
-            '& .MuiSelect-select': {
-              fontSize: isMobile ? '0.8rem' : '0.9rem',
-              padding: isMobile ? '8px 10px' : '10px 14px'
-            }
-          }}>
-            <InputLabel id="rows-per-page-label">表示件数</InputLabel>
-            <Select
-              labelId="rows-per-page-label"
-              value={rowsPerPage.toString()}
-              onChange={handleChangeRowsPerPage}
-              label="表示件数"
-            >
-              <MenuItem value={25}>25件</MenuItem>
-              <MenuItem value={50}>50件</MenuItem>
-              <MenuItem value={100}>100件</MenuItem>
-              <MenuItem value={250}>250件</MenuItem>
-            </Select>
-          </FormControl>
-          
-          <Pagination 
-            count={Math.ceil(filteredSongs.length / rowsPerPage)} 
-            page={page}
-            onChange={handleChangePage}
-            color="primary"
-            showFirstButton
-            showLastButton
-            size={isMobile ? "small" : "medium"}
-            sx={{
-              '& .MuiPaginationItem-root': {
-                minWidth: isMobile ? '30px' : '36px',
-                height: isMobile ? '30px' : '36px',
-                fontSize: isMobile ? '0.8rem' : '0.9rem'
-              }
-            }}
-          />
-        </Box>
       </Box>
       
       {/* Display Settings - Improved spacing */}
@@ -505,9 +480,9 @@ const SongList: React.FC<SongListProps> = ({
       }}>
         <Box sx={{ 
           display: 'flex', 
-          justifyContent: 'space-between', 
+          justifyContent: 'space-between',
           alignItems: 'center', 
-          flexWrap: 'wrap',
+          flexWrap: 'nowrap',
           gap: 1,
           mb: showColumnSettings ? 1 : 0
         }}>
@@ -528,13 +503,18 @@ const SongList: React.FC<SongListProps> = ({
             >
               <ViewColumnIcon sx={{ fontSize: isMobile ? '1.1rem' : '1.3rem' }} />
             </IconButton>
-            <Typography variant="body2" sx={{ ml: 0.5, fontSize: isMobile ? '0.75rem' : '0.8rem' }}>
+            <Typography variant="body2" sx={{ 
+              ml: 0.5, 
+              fontSize: isMobile ? '0.75rem' : '0.8rem',
+              whiteSpace: 'nowrap'
+            }}>
               表示項目
             </Typography>
           </Box>
           
           <FormControl size="small" sx={{ 
             width: isMobile ? '110px' : '120px',
+            minWidth: isMobile ? '110px' : '120px',
             '& .MuiInputLabel-root': {
               fontSize: isMobile ? '0.7rem' : '0.75rem'
             },
@@ -549,6 +529,23 @@ const SongList: React.FC<SongListProps> = ({
               value={density}
               onChange={handleDensityChange}
               label="表示密度"
+              MenuProps={{
+                anchorOrigin: {
+                  vertical: 'bottom',
+                  horizontal: 'right',
+                },
+                transformOrigin: {
+                  vertical: 'top',
+                  horizontal: 'right',
+                },
+                PaperProps: {
+                  sx: {
+                    zIndex: theme.zIndex.drawer + 2,
+                    backgroundColor: theme.palette.background.paper,
+                    minWidth: isMobile ? '110px' : '120px',
+                  },
+                },
+              }}
             >
               <MenuItem value="compact" sx={{ fontSize: isMobile ? '0.7rem' : '0.75rem' }}>コンパクト</MenuItem>
               <MenuItem value="comfortable" sx={{ fontSize: isMobile ? '0.7rem' : '0.75rem' }}>標準</MenuItem>
@@ -576,7 +573,8 @@ const SongList: React.FC<SongListProps> = ({
           }} />
           <Typography variant="body2" sx={{ 
             fontSize: isMobile ? '0.75rem' : '0.8rem',
-            minWidth: '50px'
+            minWidth: 'auto',
+            whiteSpace: 'nowrap'
           }}>
             文字:
           </Typography>
@@ -591,6 +589,7 @@ const SongList: React.FC<SongListProps> = ({
             sx={{ 
               flex: 1,
               mx: 1,
+              minWidth: '100px',
               '& .MuiSlider-thumb': {
                 width: isMobile ? 16 : 14,
                 height: isMobile ? 16 : 14,
@@ -611,7 +610,8 @@ const SongList: React.FC<SongListProps> = ({
             bgcolor: 'action.selected',
             px: 0.75,
             py: 0.25,
-            borderRadius: 0.75
+            borderRadius: 0.75,
+            whiteSpace: 'nowrap'
           }}>
             {fontSize}
           </Typography>
@@ -780,11 +780,125 @@ const SongList: React.FC<SongListProps> = ({
         )}
       </Paper>
       
+      {/* ここに移動 */}
+      <Box sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'nowrap',
+        gap: 2,
+        width: '100%',
+        mt: 2,
+        mb: 2
+      }}>
+        <FormControl variant="outlined" size="small" sx={{
+          minWidth: isMobile ? '120px' : '150px',
+          '& .MuiInputLabel-root': {
+            fontSize: isMobile ? '0.8rem' : '0.9rem'
+          },
+          '& .MuiSelect-select': {
+            fontSize: isMobile ? '0.8rem' : '0.9rem',
+            padding: isMobile ? '8px 10px' : '10px 14px'
+          }
+        }}>
+          <InputLabel id="rows-per-page-label">表示件数</InputLabel>
+          <Select
+            labelId="rows-per-page-label"
+            value={rowsPerPage.toString()}
+            onChange={handleChangeRowsPerPage}
+            label="表示件数"
+            MenuProps={{
+              anchorOrigin: {
+                vertical: 'bottom',
+                horizontal: 'right',
+              },
+              transformOrigin: {
+                vertical: 'top',
+                horizontal: 'right',
+              },
+              PaperProps: {
+                sx: {
+                  zIndex: theme.zIndex.drawer + 2,
+                  backgroundColor: theme.palette.background.paper,
+                  minWidth: isMobile ? '120px' : '150px',
+                },
+              },
+            }}
+          >
+            <MenuItem value={25}>25件</MenuItem>
+            <MenuItem value={50}>50件</MenuItem>
+            <MenuItem value={100}>100件</MenuItem>
+            <MenuItem value={250}>250件</MenuItem>
+          </Select>
+        </FormControl>
+
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: isMobile ? 0.5 : 1 }}>
+          <TextField
+            label="ページ"
+            type="number"
+            size="small"
+            variant="outlined"
+            value={pageInput}
+            onChange={handlePageInputChange}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                handlePageInputSubmit();
+                (e.target as HTMLInputElement).blur(); 
+              }
+            }}
+            onBlur={handlePageInputSubmit}
+            error={!!pageInputError}
+            helperText={pageInputError}
+            inputProps={{ min: 1, max: totalPages, style: { textAlign: 'center' } }}
+            sx={{
+              width: isMobile ? '70px' : '80px',
+              minWidth: isMobile ? '70px' : '80px',
+              '& .MuiFormHelperText-root': {
+                fontSize: '0.6rem',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                textAlign: 'center',
+                margin: '3px 0 0 0',
+              },
+              '& input[type=number]::-webkit-inner-spin-button, & input[type=number]::-webkit-outer-spin-button': {
+                '-webkit-appearance': 'none',
+                margin: 0,
+              },
+              '& input[type=number]': {
+                '-moz-appearance': 'textfield',
+                padding: isMobile ? '8px 5px' : '8.5px 5px',
+              },
+            }}
+          />
+          <Pagination
+            count={totalPages}
+            page={page}
+            onChange={handleChangePage}
+            color="primary"
+            showFirstButton
+            showLastButton
+            size={isMobile ? "small" : "medium"}
+            siblingCount={1} 
+            boundaryCount={2}
+            sx={{
+              whiteSpace: 'nowrap',
+              overflow: 'visible',
+              '& .MuiPaginationItem-root': {
+                minWidth: isMobile ? '28px' : '32px',
+                height: isMobile ? '28px' : '32px',
+                fontSize: isMobile ? '0.75rem' : '0.875rem'
+              }
+            }}
+          />
+        </Box>
+      </Box>
+
       {/* Table with song data */}
-      <TableContainer component={Paper} sx={{ 
+      <TableContainer component={Paper} sx={{
         borderRadius: 2,
         boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-        overflow: 'hidden'
+        overflowX: 'auto'
       }}>
         <Table size="small" aria-label="song table">
           <TableHead>
@@ -1227,31 +1341,6 @@ const SongList: React.FC<SongListProps> = ({
           </TableBody>
         </Table>
       </TableContainer>
-      
-      {/* Bottom pagination - Improved */}
-      <Box sx={{ 
-        display: 'flex', 
-        justifyContent: 'center', 
-        mt: 3,
-        mb: 2
-      }}>
-        <Pagination 
-          count={Math.ceil(filteredSongs.length / rowsPerPage)} 
-          page={page}
-          onChange={handleChangePage}
-          color="primary"
-          showFirstButton
-          showLastButton
-          size={isMobile ? "small" : "medium"}
-          sx={{
-            '& .MuiPaginationItem-root': {
-              minWidth: isMobile ? '30px' : '36px',
-              height: isMobile ? '30px' : '36px',
-              fontSize: isMobile ? '0.8rem' : '0.9rem'
-            }
-          }}
-        />
-      </Box>
     </>
   );
 };

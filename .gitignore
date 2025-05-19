@@ -21,3 +21,9 @@
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+
+# Android specific
+android/gradle.properties
+android/local.properties
+android/app/google-services.json
+*.keystore

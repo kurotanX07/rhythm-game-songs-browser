@@ -1,10 +1,9 @@
 import { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.kurotanx07.rhythmgamebrowser',
-  appName: '音ゲー広辞苑(Rhythm Game Dictionary)',
+  appId: 'com.kurotanx07.rhythmgamedictionary',
+  appName: 'Rhythm Game Dictionary(音ゲー広辞苑)',
   webDir: 'build',
-  bundledWebRuntime: false,
   plugins: {
     SplashScreen: {
       launchShowDuration: 2000,

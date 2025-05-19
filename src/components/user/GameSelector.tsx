@@ -4,6 +4,7 @@ import {
   SelectChangeEvent, Box, Typography
 } from '@mui/material';
 import { Game } from '../../types/Game';
+import { useTheme } from '@mui/material/styles';
 
 interface GameSelectorProps {
   games: Game[];
@@ -20,6 +21,8 @@ const GameSelector: React.FC<GameSelectorProps> = ({
     onGameSelect(event.target.value);
   };
   
+  const theme = useTheme();
+  
   if (games.length === 0) {
     return (
       <Box my={1}>
@@ -32,13 +35,20 @@ const GameSelector: React.FC<GameSelectorProps> = ({
   
   return (
     <Box sx={{ minWidth: 200 }}>
-      <FormControl fullWidth size="small" variant="outlined">
-        <InputLabel id="game-select-label" sx={{ fontSize: '0.85rem' }}>ゲームタイトル</InputLabel>
+      <Typography
+        variant="caption"
+        sx={{
+          fontSize: '0.8rem',
+          display: 'block',
+          mb: 0.5,
+        }}
+      >
+        ゲームタイトル
+      </Typography>
+      <FormControl fullWidth size="small" variant="outlined" sx={{ mt: 0 }}>
         <Select
-          labelId="game-select-label"
           id="game-select"
           value={selectedGameId || ''}
-          label="ゲームタイトル"
           onChange={handleChange}
           sx={{
             '& .MuiSelect-select': {
@@ -48,6 +58,23 @@ const GameSelector: React.FC<GameSelectorProps> = ({
               textOverflow: 'ellipsis',
               whiteSpace: 'nowrap'
             }
+          }}
+          MenuProps={{
+            anchorOrigin: {
+              vertical: 'bottom',
+              horizontal: 'right',
+            },
+            transformOrigin: {
+              vertical: 'top',
+              horizontal: 'right',
+            },
+            PaperProps: {
+              sx: {
+                zIndex: theme.zIndex.drawer + 2,
+                backgroundColor: theme.palette.background.paper,
+                minWidth: 200,
+              },
+            },
           }}
         >
           {games.map((game) => (

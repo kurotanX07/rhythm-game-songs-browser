@@ -202,24 +202,31 @@ const SongBrowser: React.FC = () => {
         <Container maxWidth="lg">
           <Box sx={{ 
             display: 'flex', 
-            justifyContent: 'space-between', 
-            alignItems: 'center', 
+            flexDirection: 'column', // 縦方向に配置に変更
             mb: isMobile ? 0.75 : 1,
-            mt: isMobile ? -0.5 : 0
+            mt: isMobile ? 3 : 4, // 上部マージンをさらに増やして広告とのスペースを確保
+            width: '100%' // 幅を最大に
           }}>
             <Typography 
               variant={isMobile ? "subtitle1" : "h5"} 
               component="h1" 
-              sx={{ fontSize: isMobile ? '1.1rem' : '1.5rem' }}
+              sx={{ 
+                fontSize: isMobile ? '1rem' : '1.5rem',
+                mb: 1, // 下部にマージンを追加
+                whiteSpace: 'nowrap', // 改行を防止
+                overflow: 'visible'
+              }}
             >
               楽曲一覧
             </Typography>
             
-            <GameSelector 
-              games={games} 
-              selectedGameId={selectedGameId} 
-              onGameSelect={handleGameSelect} 
-            />
+            <Box sx={{ mt: 1, mb: 2 }}> {/* マージンを追加 */}
+              <GameSelector 
+                games={games} 
+                selectedGameId={selectedGameId} 
+                onGameSelect={handleGameSelect} 
+              />
+            </Box>
           </Box>
           
           {error && (
@@ -245,7 +252,12 @@ const SongBrowser: React.FC = () => {
                 
                 {/* Export Button - modified with premium check */}
                 {filteredSongs.length > 0 && (
-                  <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
+                  <Box sx={{ 
+                    display: 'flex', 
+                    justifyContent: 'flex-end', 
+                    mb: 2,
+                    width: '100%' // 幅を最大に設定
+                  }}>
                     <Tooltip title={
                       isPremium || isAdmin
                         ? "表示中の楽曲をエクスポート"
@@ -257,6 +269,7 @@ const SongBrowser: React.FC = () => {
                         size="small"
                         startIcon={isPremium || isAdmin ? <DownloadIcon /> : <LockIcon />}
                         onClick={handleExportClick}
+                        sx={{ whiteSpace: 'nowrap' }} // テキストの改行を防止
                       >
                         エクスポート ({filteredSongs.length}曲)
                       </Button>

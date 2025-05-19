@@ -101,6 +101,10 @@ const Login: React.FC = () => {
               ログイン
             </Typography>
             
+            <Typography variant="body2" color="textSecondary" sx={{ mt: 1, textAlign: 'center' }}>
+              有料会員、または管理者の方のみご利用いただけます。
+            </Typography>
+            
             {error && (
               <Alert severity="error" sx={{ mt: 2, width: '100%' }}>
                 {error}
