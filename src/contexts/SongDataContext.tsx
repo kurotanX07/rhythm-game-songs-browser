@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Game, DifficultyDefinition } from '../types/Game';
 import { Song } from '../types/Song';
-import { getGames, getSongs } from '../services/songService';
+import { getGames, getSongs, clearServiceCache } from '../services/songService';
 import { useAuth } from './AuthContext';
 import { useUpdateStatus } from '../hooks/useLastUpdate';
 
@@ -25,7 +25,7 @@ interface SongDataContextType {
   selectGame: (gameId: string) => void;
   refreshData: () => Promise<void>;
   refreshDataAdmin: () => Promise<void>;
-  refreshSongs: (gameId: string) => Promise<void>; // 追加: 楽曲取得専用の関数
+  refreshSongs: (gameId: string) => Promise<void>;
 }
 
 const SongDataContext = createContext<SongDataContextType | null>(null);
@@ -59,9 +59,12 @@ export function SongDataProvider({ children }: SongDataProviderProps): JSX.Eleme
         setLoading(true);
         setError(null);
         
-        const fetchedGames = await getGames();
+        console.log('[SongDataContext] ゲーム一覧取得を開始します (キャッシュなし)');
         
-        // 修正: 必ず difficulties プロパティを持つことを確認
+        // キャッシュ関連ロジックを削除
+        const fetchedGames = await getGames();
+        console.log('[SongDataContext] Firestoreからゲーム一覧を取得しました (キャッシュなし):', fetchedGames.length, '件');
+        
         const gamesWithDifficulties = fetchedGames.map(game => {
           if (!game.difficulties || !Array.isArray(game.difficulties) || game.difficulties.length === 0) {
             return {
@@ -73,27 +76,32 @@ export function SongDataProvider({ children }: SongDataProviderProps): JSX.Eleme
         });
         
         setGames(gamesWithDifficulties);
+        console.log('[SongDataContext] setGames (キャッシュなし) 完了', gamesWithDifficulties);
         
-        // 最初のゲームを選択
+        // キャッシュ保存ロジックを削除
+        
         if (gamesWithDifficulties.length > 0 && !selectedGameId) {
           setSelectedGameId(gamesWithDifficulties[0].id);
+          console.log('[SongDataContext] 最初のゲームを選択 (キャッシュなし):', gamesWithDifficulties[0].id);
         }
       } catch (err) {
-        console.error('ゲームデータ取得エラー:', err);
+        console.error('[SongDataContext] ゲームデータ取得エラー (キャッシュなし):', err);
         setError('ゲーム情報の取得に失敗しました');
       } finally {
         setLoading(false);
+        console.log('[SongDataContext] fetchGames 処理完了 (キャッシュなし)');
       }
     };
     
     fetchGames();
-  }, []);
+  }, [selectedGameId]); // 依存配列を元に戻す (キャッシュ関連の依存を削除)
   
   // 選択したゲームの楽曲一覧を取得
   useEffect(() => {
     const fetchSongs = async () => {
       if (!selectedGameId) {
         setSongs([]);
+        console.log('[SongDataContext] selectedGameId がないため、楽曲取得をスキップします (キャッシュなし)');
         return;
       }
       
@@ -101,32 +109,42 @@ export function SongDataProvider({ children }: SongDataProviderProps): JSX.Eleme
         setLoading(true);
         setError(null);
         
+        console.log(`[SongDataContext] ${selectedGameId}の楽曲一覧取得を開始します (キャッシュなし)`);
+        
+        // キャッシュ関連ロジックを削除
         const fetchedSongs = await getSongs(selectedGameId);
+        console.log(`[SongDataContext] Firestoreから${selectedGameId}の楽曲を取得しました (キャッシュなし):`, fetchedSongs.length, '件');
         setSongs(fetchedSongs);
+        console.log(`[SongDataContext] setSongs (キャッシュなし for ${selectedGameId}) 完了`, fetchedSongs);
+        
+        // キャッシュ保存ロジックを削除
       } catch (err) {
-        console.error('楽曲データ取得エラー:', err);
+        console.error('[SongDataContext] 楽曲データ取得エラー (キャッシュなし):', err);
         setError('楽曲情報の取得に失敗しました');
       } finally {
         setLoading(false);
+        console.log(`[SongDataContext] fetchSongs for ${selectedGameId} 処理完了 (キャッシュなし)`);
       }
     };
     
     fetchSongs();
-  }, [selectedGameId]);
+  }, [selectedGameId]); // 依存配列を元に戻す (キャッシュ関連の依存を削除)
   
   // ゲーム選択
   const selectGame = (gameId: string) => {
+    console.log('[SongDataContext] ゲームを選択 (キャッシュなし):', gameId);
     setSelectedGameId(gameId);
   };
   
   // データ更新
   const refreshData = async () => {
     if (!currentUser) {
+      console.log('[SongDataContext] refreshData: currentUser がいないためスキップ (キャッシュなし)');
       return;
     }
     
     try {
-      // 更新可能かチェック
+      console.log('[SongDataContext] refreshData: 更新を開始します (キャッシュなし)');
       const status = await checkUpdateStatus(currentUser.uid);
       
       if (!status.isUpdateAvailable) {
@@ -142,10 +160,12 @@ export function SongDataProvider({ children }: SongDataProviderProps): JSX.Eleme
       setLoading(true);
       setError(null);
       
-      // ゲーム一覧を再取得
-      const fetchedGames = await getGames();
+      // キャッシュクリアロジックを削除
+      clearServiceCache();
       
-      // 修正: 必ず difficulties プロパティを持つことを確認
+      const fetchedGames = await getGames();
+      console.log('[SongDataContext] refreshData: ゲーム一覧を再取得しました (キャッシュなし):', fetchedGames.length, '件');
+      
       const gamesWithDifficulties = fetchedGames.map(game => {
         if (!game.difficulties || !Array.isArray(game.difficulties) || game.difficulties.length === 0) {
           return {
@@ -157,61 +177,82 @@ export function SongDataProvider({ children }: SongDataProviderProps): JSX.Eleme
       });
       
       setGames(gamesWithDifficulties);
+      console.log('[SongDataContext] refreshData: setGames 完了 (キャッシュなし)', gamesWithDifficulties);
       
-      // 楽曲一覧を再取得（選択中のゲームがある場合）
+      // キャッシュ保存ロジックを削除
+      
       if (selectedGameId) {
+        console.log(`[SongDataContext] refreshData: ${selectedGameId}の楽曲一覧を再取得します (キャッシュなし)`);
         const fetchedSongs = await getSongs(selectedGameId);
+        console.log(`[SongDataContext] refreshData: ${selectedGameId}の楽曲を再取得しました (キャッシュなし):`, fetchedSongs.length, '件');
         setSongs(fetchedSongs);
+        console.log(`[SongDataContext] refreshData: setSongs for ${selectedGameId} 完了 (キャッシュなし)`, fetchedSongs);
+        
+        // キャッシュ保存ロジックを削除
+      } else {
+        console.log('[SongDataContext] refreshData: selectedGameId がないので楽曲は再取得しません (キャッシュなし)');
       }
       
-      // 更新日時を記録
       await updateLastUpdate(currentUser.uid);
+      console.log('[SongDataContext] refreshData: 更新日時を記録しました (キャッシュなし)');
     } catch (err: any) {
-      console.error('データ更新エラー:', err);
+      console.error('[SongDataContext] データ更新エラー (キャッシュなし):', err);
       setError(err.message || 'データの更新に失敗しました');
     } finally {
       setLoading(false);
+      console.log('[SongDataContext] refreshData: 処理完了 (キャッシュなし)');
     }
   };
 
-  // 修正後のrefreshSongs関数 (楽曲取得専用、更新制限なし)
   const refreshSongs = async (gameId: string) => {
-    if (!gameId) return;
+    if (!gameId) {
+      console.log('[SongDataContext] refreshSongs: gameId がないためスキップ (キャッシュなし)');
+      return;
+    }
     
     try {
+      console.log(`[SongDataContext] refreshSongs: ${gameId} のデータを更新します (キャッシュなし)`);
       setLoading(true);
       setError(null);
       
-      // 楽曲一覧を取得
+      // キャッシュクリアロジックを削除
+      clearServiceCache(gameId);
+      
       const fetchedSongs = await getSongs(gameId);
+      console.log(`[SongDataContext] refreshSongs: ${gameId}の楽曲を再取得しました (キャッシュなし):`, fetchedSongs.length, '件');
       setSongs(fetchedSongs);
+      console.log(`[SongDataContext] refreshSongs: setSongs for ${gameId} 完了 (キャッシュなし)`, fetchedSongs);
+      
+      // キャッシュ保存ロジックを削除
     } catch (err: any) {
-      console.error('楽曲データ取得エラー:', err);
+      console.error('[SongDataContext] 楽曲データ取得エラー (キャッシュなし):', err);
       setError(err.message || '楽曲情報の取得に失敗しました');
     } finally {
       setLoading(false);
+      console.log(`[SongDataContext] refreshSongs for ${gameId}: 処理完了 (キャッシュなし)`);
     }
   };
   
   const refreshDataAdmin = async () => {
     try {
+      console.log('[SongDataContext] refreshDataAdmin: 管理者データ更新を開始します (キャッシュなし)');
       setLoading(true);
       setError(null);
       
-      // ゲーム一覧を再取得
-      const fetchedGames = await getGames();
+      // キャッシュクリアロジックを削除
+      clearServiceCache();
       
-      // ゲームデータをログに出力して問題を特定
-      console.log('Fetched games with level ranges:', fetchedGames.map(game => ({
+      const fetchedGames = await getGames();
+      console.log('[SongDataContext] refreshDataAdmin: ゲーム一覧を再取得しました (キャッシュなし):', fetchedGames.length, '件');
+      
+      console.log('[SongDataContext] refreshDataAdmin: Fetched games with level ranges (キャッシュなし):', fetchedGames.map(game => ({
         id: game.id,
         title: game.title,
         minLevel: game.minLevel,
         maxLevel: game.maxLevel
       })));
       
-      // 修正: 必ず difficulties プロパティを持つことを確認
       const gamesWithDifficulties = fetchedGames.map(game => {
-        // ここで、minLevel と maxLevel を確実に取得
         return {
           ...game,
           difficulties: game.difficulties && Array.isArray(game.difficulties) && game.difficulties.length > 0
@@ -223,17 +264,27 @@ export function SongDataProvider({ children }: SongDataProviderProps): JSX.Eleme
       });
       
       setGames(gamesWithDifficulties);
+      console.log('[SongDataContext] refreshDataAdmin: setGames 完了 (キャッシュなし)', gamesWithDifficulties);
       
-      // 楽曲一覧を再取得（選択中のゲームがある場合）
       if (selectedGameId) {
+        console.log(`[SongDataContext] refreshDataAdmin: ${selectedGameId}の楽曲一覧を再取得します (キャッシュなし)`);
         const fetchedSongs = await getSongs(selectedGameId);
+        console.log(`[SongDataContext] refreshDataAdmin: ${selectedGameId}の楽曲を再取得しました (キャッシュなし):`, fetchedSongs.length, '件');
         setSongs(fetchedSongs);
+        console.log(`[SongDataContext] refreshDataAdmin: setSongs for ${selectedGameId} 完了 (キャッシュなし)`, fetchedSongs);
+        
+        // キャッシュ保存ロジックを削除
+      } else {
+        console.log('[SongDataContext] refreshDataAdmin: selectedGameId がないので楽曲は再取得しません (キャッシュなし)');
       }
+      
+      // キャッシュ保存ロジックを削除
     } catch (err: any) {
-      console.error('管理データ更新エラー:', err);
+      console.error('[SongDataContext] 管理データ更新エラー (キャッシュなし):', err);
       setError(err.message || '管理データの更新に失敗しました');
     } finally {
       setLoading(false);
+      console.log('[SongDataContext] refreshDataAdmin: 処理完了 (キャッシュなし)');
     }
   };
   
@@ -246,7 +297,7 @@ export function SongDataProvider({ children }: SongDataProviderProps): JSX.Eleme
     selectGame,
     refreshData,
     refreshDataAdmin,
-    refreshSongs  // 楽曲取得専用の関数を追加
+    refreshSongs
   };
   
   return (

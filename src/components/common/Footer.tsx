@@ -1,5 +1,6 @@
 import React from 'react';
-import { Box, Typography, Container, Link, Divider } from '@mui/material';
+import { Box, Typography, Container, Link, Divider, Stack } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom';
 
 const Footer: React.FC = () => {
   return (
@@ -17,6 +18,20 @@ const Footer: React.FC = () => {
     >
       <Container maxWidth="lg">
         <Divider sx={{ mb: 2 }} />
+        <Stack 
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={{ xs: 1, sm: 2 }}
+          justifyContent="center"
+          alignItems="center"
+          sx={{ mb: 2 }}
+        >
+          <Link component={RouterLink} to="/" color="inherit">
+            ホーム
+          </Link>
+          <Link component={RouterLink} to="/privacy-policy" color="inherit">
+            プライバシーポリシー
+          </Link>
+        </Stack>
         <Typography variant="body2" color="text.secondary" align="center">
           {'© '}
           {new Date().getFullYear()}

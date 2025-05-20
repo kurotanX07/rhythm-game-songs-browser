@@ -21,9 +21,8 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [resetSent, setResetSent] = useState(false);
   
-  const { signIn, resetPassword } = useAuth();
+  const { signIn } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const locationState = location.state as LocationState;
@@ -45,25 +44,6 @@ const Login: React.FC = () => {
     } catch (err: any) {
       console.error('Login error:', err);
       setError('ログインに失敗しました。メールアドレスとパスワードを確認してください');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const handleResetPassword = async () => {
-    if (!email) {
-      setError('パスワードリセットするにはメールアドレスを入力してください');
-      return;
-    }
-    
-    try {
-      setError('');
-      setLoading(true);
-      await resetPassword(email);
-      setResetSent(true);
-    } catch (err: any) {
-      console.error('Reset password error:', err);
-      setError('パスワードリセットメールの送信に失敗しました');
     } finally {
       setLoading(false);
     }
@@ -102,18 +82,16 @@ const Login: React.FC = () => {
             </Typography>
             
             <Typography variant="body2" color="textSecondary" sx={{ mt: 1, textAlign: 'center' }}>
-              有料会員、または管理者の方のみご利用いただけます。
+              現在は管理者のみログイン可能です
             </Typography>
+            
+            <Alert severity="info" sx={{ mt: 2, width: '100%' }}>
+              有料会員機能はまだご利用いただけません。現在は管理者のみがログイン可能です。
+            </Alert>
             
             {error && (
               <Alert severity="error" sx={{ mt: 2, width: '100%' }}>
                 {error}
-              </Alert>
-            )}
-            
-            {resetSent && (
-              <Alert severity="success" sx={{ mt: 2, width: '100%' }}>
-                パスワードリセットメールを送信しました。メールをご確認ください。
               </Alert>
             )}
             
@@ -156,24 +134,15 @@ const Login: React.FC = () => {
                 {loading ? <CircularProgress size={24} /> : 'ログイン'}
               </Button>
               
-              <Box sx={{ mt: 2, textAlign: 'center' }}>
-                <Link
-                  component="button"
-                  variant="body2"
-                  onClick={handleResetPassword}
-                  disabled={loading}
-                >
-                  パスワードをお忘れですか？
-                </Link>
-              </Box>
-              
               <Divider sx={{ my: 3 }} />
               
+              {/* 
               <Box sx={{ textAlign: 'center' }}>
                 <Typography variant="body2">
                   アカウントをお持ちでない場合、管理者にお問い合わせください。
                 </Typography>
               </Box>
+              */}
             </Box>
           </Box>
         </Paper>

@@ -1,6 +1,6 @@
 {
   "name": "rhythm-game-songs-browser",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "dependencies": {
     "@capacitor/android": "^5.5.0",

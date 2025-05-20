@@ -4,9 +4,15 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+// デバッグログを削除
+// console.log(`アプリケーション起動: ${new Date().toLocaleString()}`);
+// console.log('キャッシュ機能が有効になりました');
+
 const root = ReactDOM.createRoot(
   document.getElementById('root') as HTMLElement
 );
+
+// StrictModeのコメントアウトを解除
 root.render(
   <React.StrictMode>
     <App />

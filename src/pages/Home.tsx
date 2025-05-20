@@ -72,12 +72,12 @@ const Home: React.FC = () => {
                 {games.map((game) => (
                   <Grid item xs={12} sm={6} md={4} key={game.id}>
                     <Card>
-                      <CardMedia
+                      {/* <CardMedia
                         component="img"
                         height="140"
                         image={game.imageUrl || '/placeholder-game.jpg'}
                         alt={game.title}
-                      />
+                      /> */}
                       <CardContent>
                         <Typography variant="h6" component="div">
                           {game.title}

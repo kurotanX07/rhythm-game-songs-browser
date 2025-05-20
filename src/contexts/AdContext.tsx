@@ -11,11 +11,8 @@ const AdContext = createContext<AdContextType | undefined>(undefined);
 export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [showAds, setShowAds] = useState(true);
   const { currentUser, isAdmin, isPremium } = useAuth();
-  
-  // Update ad visibility based on user status
+
   useEffect(() => {
-    // Hide ads for admins and premium users
-    // Show ads for non-logged in users and regular users
     const shouldShowAds = !currentUser || (!isAdmin && !isPremium);
     setShowAds(shouldShowAds);
   }, [currentUser, isAdmin, isPremium]);

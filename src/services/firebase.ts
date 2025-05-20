@@ -1,5 +1,8 @@
 import { initializeApp } from 'firebase/app';
-import { getFirestore, connectFirestoreEmulator } from 'firebase/firestore';
+import { 
+  getFirestore, 
+  connectFirestoreEmulator 
+} from 'firebase/firestore';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
 import { getFunctions, connectFunctionsEmulator } from 'firebase/functions';
@@ -18,8 +21,12 @@ const firebaseConfig = {
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Get service instances
+// Firestoreインスタンスの初期化を元に戻す
 export const db = getFirestore(app);
+
+// バックワードコンパティビリティのために、getFirestoreも可能にしておく（必要に応じて）
+// const firestoreCompat = getFirestore(app);
+
 export const storage = getStorage(app);
 export const auth = getAuth(app);
 export const functions = getFunctions(app);
@@ -30,7 +37,7 @@ if (process.env.NODE_ENV === 'development' && process.env.REACT_APP_USE_EMULATOR
   connectStorageEmulator(storage, 'localhost', 9199);
   connectAuthEmulator(auth, 'http://localhost:9099');
   connectFunctionsEmulator(functions, 'localhost', 5001);
-  console.log('Connected to Firebase emulators');
+  console.log('Connected to Firebase emulators (キャッシュなし)');
 }
 
 export default app;

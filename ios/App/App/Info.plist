@@ -45,5 +45,10 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<!-- GADApplicationIdentifierのキーと値を削除 -->
+	<!--
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY</string>
+	-->
 </dict>
 </plist>

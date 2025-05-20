@@ -20,6 +20,7 @@ const SongDetails = lazy(() => import('./pages/SongDetails'));
 const Admin = lazy(() => import('./pages/Admin'));
 const Login = lazy(() => import('./pages/Login'));
 const NotFound = lazy(() => import('./pages/NotFound'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 
 function App() {
   return (
@@ -48,6 +49,7 @@ function App() {
                           } 
                         />
                         <Route path="/login" element={<Login />} />
+                        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
                         <Route path="/404" element={<NotFound />} />
                         <Route path="*" element={<Navigate to="/404" replace />} />
                       </Routes>
