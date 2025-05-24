@@ -1,6 +1,6 @@
 {
   "name": "rhythm-game-songs-browser",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": true,
   "dependencies": {
     "@capacitor/android": "^5.5.0",
@@ -41,8 +41,8 @@
     "cap:ios": "npm run build && npx cap sync && npx cap open ios",
     "deploy": "npm run build && firebase deploy",
     "emulators": "firebase emulators:start",
-    "build:android:release": "npm run build && npx cap sync && cd android && ./gradlew assembleRelease",
-    "build:android:bundle": "npm run build && npx cap sync && cd android && ./gradlew bundleRelease"
+    "build:android:release": "npm run build && npx cap sync && cd android && gradlew assembleRelease",
+    "build:android:bundle": "npm run build && npx cap sync && cd android && gradlew bundleRelease"
   },
   "eslintConfig": {
     "extends": [
