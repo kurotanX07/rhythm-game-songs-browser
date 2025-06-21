@@ -34,11 +34,11 @@
                 android:resource="@xml/file_paths"></meta-data>
         </provider>
 
-        <!-- AdMob関連のmeta-dataタグを削除 -->
-        <!-- 
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-XXXXXXXXXXXXXXXX~YYYYYYYYYY"/> 
+            android:value="ca-app-pub-5830241925260790~6523645313"/>
+        <!-- AdMob関連のmeta-dataタグを削除 -->
+        <!-- 
         <meta-data
             android:name="com.google.android.gms.ads.flag.OPTIMIZE_INITIALIZATION"
             android:value="true"/>

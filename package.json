@@ -3,6 +3,7 @@
   "version": "0.1.2",
   "private": true,
   "dependencies": {
+    "@capacitor-community/admob": "^7.0.3",
     "@capacitor/android": "^5.5.0",
     "@capacitor/core": "^5.5.0",
     "@capacitor/ios": "^5.5.0",

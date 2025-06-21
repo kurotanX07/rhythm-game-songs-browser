@@ -203,25 +203,71 @@ export async function getSong(songId: string): Promise<Song | null> {
 /**
  * Format duration string to 00:00 format
  */
-export function formatDurationString(duration: string): string {
-  if (/^\d{1,2}:\d{2}$/.test(duration)) {
-    return duration;
+export function formatDurationString(duration: string | number | null | undefined): string {
+  if (!duration) return '';
+  
+  const durationStr = String(duration).trim();
+  
+  // 既に分:秒形式の場合はそのまま返す（0埋めのみ調整）
+  if (/^\d{1,2}:\d{1,2}$/.test(durationStr)) {
+    const parts = durationStr.split(':');
+    const minutes = parseInt(parts[0], 10);
+    const seconds = parseInt(parts[1], 10);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
   }
-  let minutes = 0;
-  let seconds = 0;
-  const timeRegex = /(\d+):(\d+)/;
-  const timeMatch = duration.match(timeRegex);
-  if (timeMatch) {
-    minutes = parseInt(timeMatch[1], 10);
-    seconds = parseInt(timeMatch[2], 10);
-  } else {
-    const totalSeconds = parseInt(duration.replace(/[^\d]/g, ''), 10);
-    if (!isNaN(totalSeconds)) {
-      minutes = Math.floor(totalSeconds / 60);
-      seconds = totalSeconds % 60;
+  
+  // 時:分:秒 形式の場合
+  if (/^\d{1,2}:\d{1,2}:\d{1,2}$/.test(durationStr)) {
+    const parts = durationStr.split(':');
+    const hours = parseInt(parts[0], 10);
+    const minutes = parseInt(parts[1], 10);
+    const seconds = parseInt(parts[2], 10);
+    
+    // 時間が小さい値（例：2:10:00）の場合、これは分:秒:ミリ秒の可能性
+    // または単純に分:秒として扱うべき場合
+    if (hours <= 59 && minutes <= 59 && seconds === 0) {
+      // 2:10:00 のような場合は 2:10 として扱う
+      return `${hours}:${minutes.toString().padStart(2, '0')}`;
+    } else {
+      // 通常の時:分:秒を分:秒に変換
+      const totalMinutes = hours * 60 + minutes;
+      return `${totalMinutes}:${seconds.toString().padStart(2, '0')}`;
     }
   }
-  return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  
+  // 小数点を含む分.秒形式（例：2.24 = 2分24秒）
+  if (/^\d{1,2}\.\d{1,2}$/.test(durationStr)) {
+    const parts = durationStr.split('.');
+    const minutes = parseInt(parts[0], 10);
+    const seconds = parseInt(parts[1], 10);
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  }
+  
+  // 数値のみの場合の処理を改善
+  const numericValue = parseFloat(durationStr.replace(/[^\d.]/g, ''));
+  if (!isNaN(numericValue)) {
+    // 100以下の場合は分.秒形式として扱う（例：2.24 = 2分24秒）
+    if (numericValue < 100 && durationStr.includes('.')) {
+      const integerPart = Math.floor(numericValue);
+      const decimalPart = Math.round((numericValue - integerPart) * 100);
+      return `${integerPart}:${decimalPart.toString().padStart(2, '0')}`;
+    }
+    // 100以上の場合は秒として扱う
+    else if (numericValue >= 100) {
+      const totalSeconds = Math.round(numericValue);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+    }
+    // 100未満で小数点がない場合は分として扱う
+    else {
+      const minutes = Math.floor(numericValue);
+      return `${minutes}:00`;
+    }
+  }
+  
+  // その他の形式は元の文字列をそのまま返す
+  return durationStr;
 }
 
 /**

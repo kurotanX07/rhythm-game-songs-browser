@@ -28,5 +28,13 @@ export interface Song {
   difficulties: {
     [difficultyId: string]: DifficultyInfo;
   };
+  // 新規追加: 難易度別YouTube URL
+  youtubeUrls?: {
+    [difficultyId: string]: string;
+  };
+  // 新規追加: カスタムフィールド
+  customFields?: {
+    [fieldName: string]: any;
+  };
   info: SongInfo;
 }

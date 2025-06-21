@@ -13,8 +13,20 @@ import { useSongData } from '../../contexts/SongDataContext';
 import { Game } from '../../types/Game';
 import { Song } from '../../types/Song';
 import { FormControlLabel, Checkbox } from '@mui/material';
+import ColumnMappingInterface from './ColumnMappingInterface';
+import DataPreview from './DataPreview';
+import { FlexibleColumnMapping, DisplaySettings } from '../../types/ExcelStructure';
+import { UserProfile } from '../../types/User';
+import { UserPermissionService } from '../../services/userPermissionService';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '../../services/firebase';
+import * as XLSX from 'xlsx';
 
-const ExcelUploader: React.FC = () => {
+interface ExcelUploaderProps {
+  currentUser?: UserProfile | null;
+}
+
+const ExcelUploader: React.FC<ExcelUploaderProps> = ({ currentUser }) => {
   const { games, refreshData } = useSongData();
   const { 
     songs, structure, loading, error, uploadProgress,
@@ -26,7 +38,18 @@ const ExcelUploader: React.FC = () => {
   const [activeStep, setActiveStep] = useState(0);
   const [success, setSuccess] = useState<string | null>(null);
   
+  // 新規追加: 列マッピング関連の状態
+  const [excelHeaders, setExcelHeaders] = useState<string[]>([]);
+  const [excelSampleData, setExcelSampleData] = useState<any[][]>([]);
+  const [customColumnMapping, setCustomColumnMapping] = useState<FlexibleColumnMapping | null>(null);
+  const [displaySettings, setDisplaySettings] = useState<DisplaySettings>({});
+  const [useCustomMapping, setUseCustomMapping] = useState<boolean>(false);
+  
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // 権限チェック
+  const permissions = UserPermissionService.getPermissions(currentUser || null);
+  const isAdmin = UserPermissionService.isAdmin(currentUser || null);
   
   // Get valid song count
   const validSongCount = songs && Array.isArray(songs) ? 
@@ -39,13 +62,54 @@ const ExcelUploader: React.FC = () => {
     setActiveStep(0);
     setFile(null);
     setSuccess(null);
+    // Reset mapping states
+    setExcelHeaders([]);
+    setExcelSampleData([]);
+    setCustomColumnMapping(null);
+    setDisplaySettings({});
+    setUseCustomMapping(false);
   };
   
   // File selection handler
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files.length > 0) {
-      setFile(event.target.files[0]);
+      const selectedFile = event.target.files[0];
+      setFile(selectedFile);
+      
+      // ファイル選択時にヘッダーとサンプルデータを読み取り
+      analyzeFileStructure(selectedFile);
+      
       setActiveStep(1);
+    }
+  };
+  
+  // 新規追加: ファイル構造の解析
+  const analyzeFileStructure = async (file: File) => {
+    try {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (!e.target?.result) return;
+        
+        const data = new Uint8Array(e.target.result as ArrayBuffer);
+        const workbook = XLSX.read(data, { type: 'array' });
+        const sheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[sheetName];
+        
+        // ヘッダー行とサンプルデータを取得
+        const jsonData = XLSX.utils.sheet_to_json(worksheet, { 
+          header: 1, 
+          range: 0, // 最初の行から
+          defval: null 
+        }) as any[][];
+        
+        if (jsonData.length > 0) {
+          setExcelHeaders(jsonData[0] || []);
+          setExcelSampleData(jsonData.slice(1, 4)); // 最初の3行のサンプルデータ
+        }
+      };
+      reader.readAsArrayBuffer(file);
+    } catch (error) {
+      console.error('ファイル構造解析エラー:', error);
     }
   };
   
@@ -56,7 +120,7 @@ const ExcelUploader: React.FC = () => {
   
   const [reanalyzeStructure, setReanalyzeStructure] = useState<boolean>(false);
 
-  // File analysis handler
+  // File analysis handler - 修正版
   const handleParseFile = async () => {
     if (!file || !selectedGameId) return;
     
@@ -66,16 +130,39 @@ const ExcelUploader: React.FC = () => {
         throw new Error('選択されたゲームが見つかりません');
       }
       
-      // Pass reanalyzeStructure flag to force reanalysis if needed
-      const parsedSongs = await parseExcel(file, selectedGameId, reanalyzeStructure);
-      
-      // Next step...
-      setActiveStep(2);
+      // カスタムマッピングを使用する場合は次のステップへ
+      if (useCustomMapping && excelHeaders.length > 0) {
+        setActiveStep(2); // 列マッピング設定ステップへ
+      } else {
+        // 従来の自動解析を実行
+        const parsedSongs = await parseExcel(file, selectedGameId, reanalyzeStructure);
+        setActiveStep(3); // データ確認ステップへ
+      }
     } catch (err) {
       console.error('ファイル解析エラー:', err);
     }
   };
   
+  // 新規追加: カスタムマッピングでの解析
+  const handleParseWithCustomMapping = async () => {
+    if (!file || !selectedGameId || !customColumnMapping) return;
+    
+    try {
+      const selectedGame = games.find(g => g.id === selectedGameId);
+      if (!selectedGame) {
+        throw new Error('選択されたゲームが見つかりません');
+      }
+      
+      // カスタムマッピングを使用してファイルを解析
+      // TODO: parseExcelWithCustomMapping 関数を実装する必要があります
+      // 現在は従来の方法で解析
+      const parsedSongs = await parseExcel(file, selectedGameId, true);
+      setActiveStep(3); // データ確認ステップへ
+    } catch (err) {
+      console.error('カスタムマッピング解析エラー:', err);
+    }
+  };
+
   // Upload handler - modified to pass file as optional
   const handleUpload = async () => {
     if (!selectedGameId || validSongCount === 0) return;
@@ -92,13 +179,13 @@ const ExcelUploader: React.FC = () => {
       if (error) {
         // Error will be displayed automatically through the error state
         // but we still advance to the next step since some data was saved
-        setActiveStep(3);
+        setActiveStep(4);
         setSuccess(`${validSongCount}曲のデータは保存されましたが、アップロードに問題がありました。`);
       } else {
         // Full success
         setSuccess(`${validSongCount}曲のデータをアップロードしました`);
         // Move to final step
-        setActiveStep(3);
+        setActiveStep(4);
       }
       
       // Refresh data
@@ -293,6 +380,20 @@ const ExcelUploader: React.FC = () => {
               label="Excel構造を再解析する（列の変更がある場合）"
             />
             
+            {/* 新規追加: カスタムマッピングオプション */}
+            {excelHeaders.length > 0 && (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={useCustomMapping}
+                    onChange={(e) => setUseCustomMapping(e.target.checked)}
+                    disabled={loading}
+                  />
+                }
+                label="列マッピングを手動で設定する（推奨）"
+              />
+            )}
+            
             <Button
               variant="contained"
               onClick={handleParseFile}
@@ -300,6 +401,39 @@ const ExcelUploader: React.FC = () => {
               sx={{ mt: 1, mr: 1 }}
             >
               {loading ? <CircularProgress size={24} /> : 'ファイルを解析'}
+            </Button>
+          </StepContent>
+        </Step>
+        
+        {/* 新規追加: 列マッピング設定ステップ */}
+        <Step key="mapping">
+          <StepLabel>列マッピング設定</StepLabel>
+          <StepContent>
+            <Typography variant="body2" paragraph>
+              Excelファイルの列と楽曲データのフィールドを対応付けてください。
+              自動検出された結果を確認し、必要に応じて調整できます。
+            </Typography>
+            
+            {excelHeaders.length > 0 && selectedGameId && (
+              <Box sx={{ mb: 2 }}>
+                <ColumnMappingInterface
+                  headers={excelHeaders}
+                  sampleData={excelSampleData}
+                  game={games.find(g => g.id === selectedGameId)!}
+                  onMappingChange={setCustomColumnMapping}
+                  onDisplaySettingsChange={setDisplaySettings}
+                  currentUser={currentUser}
+                />
+              </Box>
+            )}
+            
+            <Button
+              variant="contained"
+              onClick={handleParseWithCustomMapping}
+              disabled={loading || !customColumnMapping}
+              sx={{ mt: 1, mr: 1 }}
+            >
+              {loading ? <CircularProgress size={24} /> : 'マッピングを適用して解析'}
             </Button>
           </StepContent>
         </Step>
@@ -319,45 +453,15 @@ const ExcelUploader: React.FC = () => {
                     曲のデータが取得されました
                   </Typography>
                   
-                  {/* サンプルデータ表示 */}
-                  {songs.length > 0 && (
+                  {/* 新しいデータプレビュー */}
+                  {songs.length > 0 && selectedGameId && (
                     <Box sx={{ mb: 2 }}>
-                      <Typography variant="subtitle2" gutterBottom>データサンプル:</Typography>
-                      <Paper variant="outlined" sx={{ p: 1, mb: 2, maxHeight: '150px', overflow: 'auto' }}>
-                        {songs.slice(0, 5).map((song, index) => (
-                          <Box key={index} sx={{ mb: 1 }}>
-                            <Typography variant="body2">
-                              {song.songNo}. <strong>{song.name}</strong>
-                              {song.info.artist ? ` - ${song.info.artist}` : ''}
-                            </Typography>
-                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-                              {Object.entries(song.difficulties)
-                                .filter(([_, diff]) => diff.level !== null)
-                                .map(([diffId, diff]) => {
-                                  const difficultyDef = games.find(g => g.id === selectedGameId)?.difficulties.find(d => d.id === diffId);
-                                  return (
-                                    <Chip
-                                      key={diffId}
-                                      label={`${difficultyDef?.name || diffId} ${diff.level}`}
-                                      size="small"
-                                      sx={{ 
-                                        bgcolor: difficultyDef?.color || '#757575',
-                                        color: 'white',
-                                        fontSize: '0.7rem'
-                                      }}
-                                    />
-                                  );
-                                })}
-                            </Box>
-                            {index < songs.slice(0, 5).length - 1 && <Divider sx={{ my: 1 }} />}
-                          </Box>
-                        ))}
-                        {songs.length > 5 && (
-                          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', textAlign: 'center' }}>
-                            他 {songs.length - 5} 曲...
-                          </Typography>
-                        )}
-                      </Paper>
+                      <DataPreview
+                        songs={songs}
+                        game={games.find(g => g.id === selectedGameId)!}
+                        displaySettings={displaySettings}
+                        maxPreviewRows={10}
+                      />
                     </Box>
                   )}
                   
@@ -390,6 +494,12 @@ const ExcelUploader: React.FC = () => {
                 setActiveStep(0);
                 setFile(null);
                 setSuccess(null);
+                // Reset mapping states
+                setExcelHeaders([]);
+                setExcelSampleData([]);
+                setCustomColumnMapping(null);
+                setDisplaySettings({});
+                setUseCustomMapping(false);
               }}
               sx={{ mt: 1, mr: 1 }}
             >

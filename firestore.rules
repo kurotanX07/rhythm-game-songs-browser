@@ -1,0 +1,80 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ユーザープロファイル
+    match /users/{userId} {
+      // ユーザーは自分のプロファイルを読み書きできる
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // 管理者は全てのユーザープロファイルを読み書きできる
+      allow read, write: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // ゲーム情報
+    match /games/{gameId} {
+      // 全ユーザーが読み取り可能
+      allow read: if true;
+      
+      // 管理者のみ作成・更新・削除可能
+      allow create, update, delete: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // 楽曲データ
+    match /songs/{songId} {
+      // 全ユーザーが読み取り可能
+      allow read: if true;
+      
+      // 管理者のみ作成・更新・削除可能
+      allow create, update, delete: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // Excel構造設定
+    match /excelStructures/{structureId} {
+      // 管理者のみアクセス可能
+      allow read, write: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // アップロードプリセット
+    match /uploadPresets/{presetId} {
+      // 管理者のみアクセス可能
+      allow read, write: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // お気に入り
+    match /favorites/{favoriteId} {
+      // ユーザーは自分のお気に入りのみアクセス可能
+      allow read, write: if request.auth != null && 
+        request.auth.uid == resource.data.userId;
+      
+      // 新規作成時
+      allow create: if request.auth != null && 
+        request.auth.uid == request.resource.data.userId;
+    }
+    
+    // 更新ステータス
+    match /updateStatus/{statusId} {
+      // 全ユーザーが読み取り可能
+      allow read: if true;
+      
+      // 管理者のみ更新可能
+      allow write: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+    
+    // その他のドキュメントはデフォルトで拒否
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

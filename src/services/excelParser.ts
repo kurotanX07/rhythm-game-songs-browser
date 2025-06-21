@@ -86,7 +86,9 @@ export async function parseExcelFile(file: File, structure: ExcelStructure, game
           range: rangeStr,
           header: 1,  // 数値インデックスを使用
           blankrows: false,
-          defval: null
+          defval: null,
+          raw: false,  // 生の値ではなく、フォーマットされた値を使用
+          dateNF: 'yyyy-mm-dd'  // 日付フォーマット
         });
         
         // Log the first few rows for debugging
@@ -114,7 +116,8 @@ export async function parseExcelFile(file: File, structure: ExcelStructure, game
         const processedSongs = createSongsFromExcel(
           jsonData as any[][], 
           adjustedStructure, 
-          game
+          game,
+          worksheet
         );
         
         console.log(`Processed ${processedSongs.length} songs from Excel file`);
@@ -427,7 +430,7 @@ function adjustColumnOffset(mapping: ColumnMapping, row?: any[] | undefined): Co
 /**
  * Excelデータから楽曲データを作成する 
  */
-function createSongsFromExcel(data: any[][], structure: ExcelStructure, game: Game): Song[] {
+function createSongsFromExcel(data: any[][], structure: ExcelStructure, game: Game, worksheet?: any): Song[] {
   const { columnMapping, dataStartRow, headerRow } = structure;
   const startIndex = Math.max(0, dataStartRow - headerRow - 1);
   
@@ -506,7 +509,7 @@ function createSongsFromExcel(data: any[][], structure: ExcelStructure, game: Ga
       const difficulties = getDifficultyInfoFromArray(row, columnMapping, game);
       
       // 楽曲情報の取得
-      const info = getSongInfoFromArray(row, columnMapping);
+      const info = getSongInfoFromArray(row, columnMapping, index + dataStartRow, headerRow, worksheet);
       
       // Only log debug info for first few songs to avoid console flood
       if (index < 2) {
@@ -619,7 +622,7 @@ function getDifficultyInfoFromArray(row: any[], mapping: ColumnMapping, game: Ga
 /**
  * 行データから楽曲情報を取得する
  */
-function getSongInfoFromArray(row: any[], mapping: ColumnMapping): SongInfo {
+function getSongInfoFromArray(row: any[], mapping: ColumnMapping, rowIndex?: number, headerRow?: number, worksheet?: any): SongInfo {
   const info: SongInfo = {};
   
   // アーティスト
@@ -657,8 +660,136 @@ function getSongInfoFromArray(row: any[], mapping: ColumnMapping): SongInfo {
   // 時間
   if (mapping.info.duration !== undefined && mapping.info.duration >= 0 && mapping.info.duration < row.length) {
     const duration = row[mapping.info.duration];
-    if (duration) {
-      info.duration = String(duration);
+    
+    // ワークシートから直接セルデータを読み取る（より正確な処理のため）
+    let cellValue = duration;
+    if (worksheet && rowIndex !== undefined && headerRow !== undefined) {
+      try {
+        const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c: mapping.info.duration });
+        const cell = worksheet[cellAddress];
+        if (cell) {
+          console.log('Direct cell access:', {
+            address: cellAddress,
+            cellType: cell.t,
+            cellValue: cell.v,
+            cellFormatted: cell.w,
+            cellFormula: cell.f
+          });
+          
+          // セルタイプに基づいて処理
+          if (cell.t === 'd') {
+            // 日付/時間セル
+            cellValue = cell.v;
+          } else if (cell.t === 'n' && cell.w) {
+            // 数値セルでフォーマット済み表示がある場合
+            cellValue = cell.w;
+          } else {
+            // その他の場合は元の値を使用
+            cellValue = cell.v || duration;
+          }
+        }
+      } catch (error) {
+        console.warn('Failed to read cell directly, using JSON value:', error);
+        cellValue = duration;
+      }
+    }
+    
+    // デバッグ情報を追加
+    console.log('Duration processing:', {
+      rawValue: duration,
+      cellValue: cellValue,
+      type: typeof cellValue,
+      isDate: cellValue instanceof Date,
+      isNumber: typeof cellValue === 'number',
+      stringValue: String(cellValue),
+      columnIndex: mapping.info.duration
+    });
+    
+    if (cellValue !== undefined && cellValue !== null) {
+      try {
+        // Dateオブジェクトの場合（Excelの時間セル）
+        if (cellValue instanceof Date) {
+          const hours = cellValue.getHours();
+          const minutes = cellValue.getMinutes();
+          const seconds = cellValue.getSeconds();
+          
+          console.log('Date object time parts:', { hours, minutes, seconds });
+          
+          // エクセルで「2:10」のような分:秒形式で入力された場合を考慮
+          // 時間が設定されている場合でも、実際の意図は分:秒の可能性が高い
+          // 時間部分を分に変換せず、分:秒として扱う
+          if (hours === 0) {
+            info.duration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+          } else {
+            // 時間が設定されている場合、これは通常分:秒形式の誤解釈
+            // 時間部分を分として、分部分を秒として扱う
+            info.duration = `${hours}:${minutes.toString().padStart(2, '0')}`;
+          }
+          
+          console.log('Formatted duration from Date:', info.duration);
+        }
+        // 数値の場合
+        else if (typeof cellValue === 'number') {
+          console.log('Processing numeric duration:', cellValue);
+          
+          // 非常に大きな数値（タイムスタンプやミリ秒）の場合
+          if (cellValue > 1000000) {
+            console.warn('Duration value seems to be a timestamp, skipping:', cellValue);
+            info.duration = null;
+          }
+          // Excelの時間シリアル値（0-1の範囲）
+          else if (cellValue > 0 && cellValue < 1) {
+            console.log('Processing Excel time serial value:', cellValue);
+            // Excelの時間シリアル値を時:分:秒に変換
+            const totalSeconds = Math.round(cellValue * 24 * 60 * 60);
+            const hours = Math.floor(totalSeconds / 3600);
+            const minutes = Math.floor((totalSeconds % 3600) / 60);
+            const seconds = totalSeconds % 60;
+            
+            console.log('Time serial conversion:', { totalSeconds, hours, minutes, seconds });
+            
+            if (hours === 0) {
+              info.duration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            } else {
+              const totalMinutes = hours * 60 + minutes;
+              info.duration = `${totalMinutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+            
+            console.log('Formatted duration from serial:', info.duration);
+          }
+          // 1以上の数値の場合は秒として扱う
+          else if (cellValue >= 1 && cellValue < 10000) {
+            console.log('Processing duration as seconds:', cellValue);
+            const totalSeconds = Math.round(cellValue);
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            info.duration = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            
+            console.log('Formatted duration from seconds:', info.duration);
+          }
+          // その他の数値は無効として扱う
+          else {
+            console.warn('Invalid duration value:', cellValue);
+            info.duration = null;
+          }
+        }
+        // 文字列の場合
+        else {
+          const durationStr = String(cellValue).trim();
+          console.log('Processing string duration:', durationStr);
+          
+          // 空文字列や無効な値をチェック
+          if (!durationStr || durationStr === '0' || durationStr === 'null' || durationStr === 'undefined') {
+            info.duration = null;
+          } else {
+            info.duration = durationStr;
+            console.log('Using string duration as-is:', info.duration);
+          }
+        }
+      } catch (error) {
+        console.error('Duration parsing error:', error, 'Value was:', cellValue, 'Type:', typeof cellValue);
+        info.duration = null;
+      }
     }
   }
   
