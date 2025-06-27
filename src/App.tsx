@@ -24,9 +24,27 @@ const Login = lazy(() => import('./pages/Login'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 
+// 広告表示ON/OFFを環境変数で制御
+const ENABLE_ADS = process.env.REACT_APP_ENABLE_ADS === 'true';
+
+// プラットフォームごとに広告ユニットIDを切り替え
+const getAdUnitId = () => {
+  if (Capacitor.getPlatform() === 'android') {
+    return 'ca-app-pub-5830241925260790/5342425585'; // Android用
+  } else if (Capacitor.getPlatform() === 'ios') {
+    return 'ca-app-pub-5830241925260790/8379887547'; // iOS用
+  }
+  return '';
+};
+
 const App: React.FC = () => {
 
   useEffect(() => {
+    // 広告表示ON/OFF
+    if (!ENABLE_ADS) {
+      console.log("広告表示は無効化されています");
+      return;
+    }
     // Web版では広告を表示しない
     if (!Capacitor.isNativePlatform()) {
       console.log("Web版では広告を表示しません");
@@ -46,7 +64,7 @@ const App: React.FC = () => {
 
     const showBannerAd = async () => {
       const options: BannerAdOptions = {
-        adId: 'ca-app-pub-5830241925260790/5342425585', // バナー広告ユニットID
+        adId: getAdUnitId(), // プラットフォームごとに切り替え
         adSize: BannerAdSize.ADAPTIVE_BANNER,
         position: BannerAdPosition.BOTTOM_CENTER,
         margin: 0,
