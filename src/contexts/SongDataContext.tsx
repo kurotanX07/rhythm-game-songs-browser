@@ -42,93 +42,209 @@ interface SongDataProviderProps {
   children: React.ReactNode;
 }
 
+// テストデータ定義
+const TEST_GAMES: Game[] = [
+  {
+    id: 'test-game-1',
+    title: 'Project SEKAI',
+    description: 'プロジェクトセカイ カラフルステージ！',
+    imageUrl: '',
+    songCount: 450,
+    lastUpdated: new Date(),
+    minLevel: 1,
+    maxLevel: 37,
+    difficulties: [...DEFAULT_DIFFICULTIES]
+  },
+  {
+    id: 'test-game-2', 
+    title: 'バンドリ！ガルパ',
+    description: 'BanG Dream! ガールズバンドパーティ！',
+    imageUrl: '',
+    songCount: 300,
+    lastUpdated: new Date(),
+    minLevel: 1,
+    maxLevel: 28,
+    difficulties: [...DEFAULT_DIFFICULTIES]
+  },
+  {
+    id: 'test-game-3', 
+    title: 'D4DJ Groovy Mix',
+    description: 'D4DJ Groovy Mix',
+    imageUrl: '',
+    songCount: 200,
+    lastUpdated: new Date(),
+    minLevel: 1,
+    maxLevel: 15,
+    difficulties: [...DEFAULT_DIFFICULTIES]
+  }
+];
+
 export function SongDataProvider({ children }: SongDataProviderProps): JSX.Element {
-  const [games, setGames] = useState<Game[]>([]);
-  const [selectedGameId, setSelectedGameId] = useState<string | null>(null);
+  const [games, setGames] = useState<Game[]>(TEST_GAMES); // 初期状態でテストデータを設定
+  const [selectedGameId, setSelectedGameId] = useState<string | null>(TEST_GAMES[0].id);
   const [songs, setSongs] = useState<Song[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState<boolean>(false); // 初期状態をfalseに変更
   const [error, setError] = useState<string | null>(null);
   
   const { currentUser } = useAuth();
   const { checkUpdateStatus, updateLastUpdate } = useUpdateStatus();
   
-  // ゲーム一覧を取得
+  // デバッグ用ログ
+  console.log('[SongDataContext] Provider initialized');
+  console.log('[SongDataContext] Current user:', currentUser?.uid || 'No user');
+  console.log('[SongDataContext] Loading state:', loading);
+  console.log('[SongDataContext] Error state:', error);
+  console.log('[SongDataContext] Games count:', games.length);
+  
+  // Firebase接続の詳細診断
   useEffect(() => {
-    const fetchGames = async () => {
+    console.log('[SongDataContext] Firebase接続診断を開始');
+    
+    const diagnoseFirebase = async () => {
       try {
+        // 環境情報
+        console.log('[SongDataContext] Environment:', process.env.NODE_ENV);
+        console.log('[SongDataContext] User Agent:', navigator.userAgent);
+        console.log('[SongDataContext] Platform:', (window as any).Capacitor?.getPlatform?.() || 'web');
+        
+        // ネットワーク状態確認
+        console.log('[SongDataContext] Online status:', navigator.onLine);
+        
+        // iOS特有のネットワーク状態確認
+        if ((window as any).Capacitor) {
+          console.log('[SongDataContext] Running in Capacitor environment');
+          // iOS WebViewでのネットワーク接続確認
+          const testFetch = async () => {
+            try {
+              await fetch('https://www.google.com/favicon.ico', { 
+                mode: 'no-cors',
+                method: 'HEAD'
+              });
+              console.log('[SongDataContext] Basic network test successful');
+              return true;
+            } catch (fetchError) {
+              console.log('[SongDataContext] Basic network test failed:', fetchError);
+              return false;
+            }
+          };
+          
+          const networkOk = await testFetch();
+          console.log('[SongDataContext] Network connectivity:', networkOk);
+        }
+        
+        // Firebase設定確認
+        const { db } = await import('../services/firebase');
+        console.log('[SongDataContext] Firebase app initialized');
+        console.log('[SongDataContext] Firestore instance:', db);
+        
+        // 簡単な接続テスト
+        console.log('[SongDataContext] Testing Firebase connection...');
         setLoading(true);
         setError(null);
         
-        console.log('[SongDataContext] ゲーム一覧取得を開始します (キャッシュなし)');
+        // タイムアウト付きでFirebase接続テスト (iOS環境では短めに設定)
+        const timeoutMs = (window as any).Capacitor ? 3000 : 10000; // iOS: 3秒, Web: 10秒
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`Firebase接続タイムアウト (${timeoutMs/1000}秒)`)), timeoutMs)
+        );
         
-        // キャッシュ関連ロジックを削除
-        const fetchedGames = await getGames();
-        console.log('[SongDataContext] Firestoreからゲーム一覧を取得しました (キャッシュなし):', fetchedGames.length, '件');
+        const testResult = await Promise.race([
+          getGames(),
+          timeoutPromise
+        ]) as Game[];
         
-        const gamesWithDifficulties = fetchedGames.map(game => {
-          if (!game.difficulties || !Array.isArray(game.difficulties) || game.difficulties.length === 0) {
-            return {
-              ...game,
-              difficulties: [...DEFAULT_DIFFICULTIES]
-            };
+        console.log('[SongDataContext] Firebase接続成功:', testResult.length, '件のゲームを取得');
+        
+        if (testResult.length > 0) {
+          const gamesWithDifficulties = testResult.map(game => ({
+            ...game,
+            difficulties: game.difficulties || [...DEFAULT_DIFFICULTIES]
+          }));
+          
+          setGames(gamesWithDifficulties);
+          if (!selectedGameId) {
+            setSelectedGameId(gamesWithDifficulties[0].id);
           }
-          return game;
+          console.log('[SongDataContext] Firebase データでゲーム一覧を更新');
+        } else {
+          console.log('[SongDataContext] Firebase接続成功だが、ゲームが0件 - テストデータを使用');
+          // テストデータにフォールバック
+          setGames(TEST_GAMES);
+          if (!selectedGameId) {
+            setSelectedGameId(TEST_GAMES[0].id);
+          }
+        }
+        
+      } catch (err) {
+        console.error('[SongDataContext] Firebase接続エラー:', err);
+        console.error('[SongDataContext] エラー詳細:', {
+          name: (err as Error).name,
+          message: (err as Error).message,
+          stack: (err as Error).stack
         });
         
-        setGames(gamesWithDifficulties);
-        console.log('[SongDataContext] setGames (キャッシュなし) 完了', gamesWithDifficulties);
-        
-        // キャッシュ保存ロジックを削除
-        
-        if (gamesWithDifficulties.length > 0 && !selectedGameId) {
-          setSelectedGameId(gamesWithDifficulties[0].id);
-          console.log('[SongDataContext] 最初のゲームを選択 (キャッシュなし):', gamesWithDifficulties[0].id);
+        // エラー時はテストデータを使用
+        console.log('[SongDataContext] エラーによりテストデータを使用');
+        setGames(TEST_GAMES);
+        if (!selectedGameId) {
+          setSelectedGameId(TEST_GAMES[0].id);
         }
-      } catch (err) {
-        console.error('[SongDataContext] ゲームデータ取得エラー (キャッシュなし):', err);
-        setError('ゲーム情報の取得に失敗しました');
+        // エラーメッセージを分かりやすく変換
+        let errorMessage = (err as Error).message;
+        if (errorMessage.includes('429') || errorMessage.includes('Quota exceeded')) {
+          errorMessage = 'APIの利用制限に達しました。しばらく時間をおいてからお試しください。';
+        } else if (errorMessage.includes('Network Error') || errorMessage.includes('Failed to fetch')) {
+          errorMessage = 'ネットワーク接続に問題があります。インターネット接続を確認してください。';
+        }
+        setError(errorMessage);
       } finally {
         setLoading(false);
-        console.log('[SongDataContext] fetchGames 処理完了 (キャッシュなし)');
+        console.log('[SongDataContext] Firebase診断完了');
       }
     };
     
-    fetchGames();
-  }, [selectedGameId]); // 依存配列を元に戻す (キャッシュ関連の依存を削除)
+    diagnoseFirebase();
+  }, []); // 初回のみ実行
   
-  // 選択したゲームの楽曲一覧を取得
+  // iOS環境でのREST API楽曲取得テスト
   useEffect(() => {
+    if (!selectedGameId) {
+      setSongs([]);
+      console.log('[SongDataContext] selectedGameId がないため、楽曲をクリア');
+      return;
+    }
+    
     const fetchSongs = async () => {
-      if (!selectedGameId) {
-        setSongs([]);
-        console.log('[SongDataContext] selectedGameId がないため、楽曲取得をスキップします (キャッシュなし)');
-        return;
-      }
-      
       try {
+        console.log(`[SongDataContext] iOS向けREST APIで${selectedGameId}の楽曲取得を開始`);
         setLoading(true);
         setError(null);
         
-        console.log(`[SongDataContext] ${selectedGameId}の楽曲一覧取得を開始します (キャッシュなし)`);
-        
-        // キャッシュ関連ロジックを削除
         const fetchedSongs = await getSongs(selectedGameId);
-        console.log(`[SongDataContext] Firestoreから${selectedGameId}の楽曲を取得しました (キャッシュなし):`, fetchedSongs.length, '件');
+        console.log(`[SongDataContext] 楽曲取得成功:`, fetchedSongs.length, '件');
         setSongs(fetchedSongs);
-        console.log(`[SongDataContext] setSongs (キャッシュなし for ${selectedGameId}) 完了`, fetchedSongs);
-        
-        // キャッシュ保存ロジックを削除
       } catch (err) {
-        console.error('[SongDataContext] 楽曲データ取得エラー (キャッシュなし):', err);
-        setError('楽曲情報の取得に失敗しました');
+        console.error('[SongDataContext] 楽曲取得エラー:', err);
+        setSongs([]); // エラー時は空配列
+        
+        // エラーメッセージを分かりやすく変換
+        let errorMessage = (err as Error).message;
+        if (errorMessage.includes('429') || errorMessage.includes('Quota exceeded')) {
+          errorMessage = 'APIの利用制限に達しました。しばらく時間をおいてからお試しください。';
+        } else if (errorMessage.includes('Network Error') || errorMessage.includes('Failed to fetch')) {
+          errorMessage = 'ネットワーク接続に問題があります。インターネット接続を確認してください。';
+        } else {
+          errorMessage = '楽曲データの読み込みに失敗しました。';
+        }
+        setError(errorMessage);
       } finally {
         setLoading(false);
-        console.log(`[SongDataContext] fetchSongs for ${selectedGameId} 処理完了 (キャッシュなし)`);
+        console.log(`[SongDataContext] 楽曲取得処理完了 for ${selectedGameId}`);
       }
     };
     
     fetchSongs();
-  }, [selectedGameId]); // 依存配列を元に戻す (キャッシュ関連の依存を削除)
+  }, [selectedGameId]);
   
   // ゲーム選択
   const selectGame = (gameId: string) => {

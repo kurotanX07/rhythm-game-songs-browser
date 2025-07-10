@@ -1,164 +1,87 @@
-// src/hooks/useFavorites.ts
+// src/hooks/useFavorites.ts - iOS対応シンプル版
 import { useState, useEffect, useCallback } from 'react';
-import { doc, getDoc, updateDoc, arrayUnion, arrayRemove, setDoc, collection } from 'firebase/firestore';
-import { db } from '../services/firebase';
-import { useAuth } from '../contexts/AuthContext';
 
-// Maximum number of favorites to store directly in localStorage (to reduce Firebase usage)
-const MAX_LOCAL_FAVORITES = 500;
+const FAVORITES_STORAGE_KEY = 'rhythm-game-favorites';
 
 export function useFavorites() {
-  const { currentUser } = useAuth();
   const [favorites, setFavorites] = useState<string[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // Load favorites on initialization
+  // 初期化時にローカルストレージから読み込み
   useEffect(() => {
-    const loadFavorites = async () => {
-      try {
-        setLoading(true);
-        setError(null);
-        
-        // First try to read from localStorage (to reduce Firebase reads)
-        const localFavorites = localStorage.getItem('songFavorites');
-        
-        if (localFavorites) {
-          const parsedFavorites = JSON.parse(localFavorites);
-          setFavorites(parsedFavorites);
-          setLoading(false);
-          return;
-        }
-        
-        // If user is logged in, try to read from Firestore
-        if (currentUser) {
-          const userDocRef = doc(db, 'userPreferences', currentUser.uid);
-          const userDoc = await getDoc(userDocRef);
-          
-          if (userDoc.exists() && userDoc.data().favorites) {
-            setFavorites(userDoc.data().favorites);
-            
-            // Store in localStorage for faster access next time
-            localStorage.setItem('songFavorites', JSON.stringify(userDoc.data().favorites));
-          } else {
-            // First time user, initialize with empty array
-            setFavorites([]);
-            localStorage.setItem('songFavorites', JSON.stringify([]));
-          }
-        } else {
-          // Not logged in, use empty array
-          setFavorites([]);
-          localStorage.setItem('songFavorites', JSON.stringify([]));
-        }
-      } catch (err) {
-        console.error('Error loading favorites:', err);
-        setError('お気に入りの読み込みに失敗しました');
-        
-        // Fallback to empty array
-        setFavorites([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    loadFavorites();
-  }, [currentUser]);
-  
-  // Toggle a song in favorites
-  const toggleFavorite = useCallback(async (songId: string) => {
     try {
-      const newFavorites = [...favorites];
-      const index = newFavorites.indexOf(songId);
-      
-      if (index === -1) {
-        // Add to favorites
-        newFavorites.push(songId);
-      } else {
-        // Remove from favorites
-        newFavorites.splice(index, 1);
+      const stored = localStorage.getItem(FAVORITES_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed)) {
+          setFavorites(parsed);
+          console.log('[useFavorites] Loaded favorites from localStorage:', parsed.length);
+        }
       }
-      
-      // Update state immediately for responsive UI
+    } catch (error) {
+      console.error('[useFavorites] Failed to load favorites from localStorage:', error);
+    }
+  }, []);
+
+  // お気に入りの保存
+  const saveFavorites = useCallback((newFavorites: string[]) => {
+    try {
+      localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(newFavorites));
       setFavorites(newFavorites);
-      
-      // Store in localStorage first (for fast access and as fallback)
-      localStorage.setItem('songFavorites', JSON.stringify(newFavorites));
-      
-      // If user is logged in and favorites exceed local storage limit, update Firestore
-      // This reduces Firebase writes for users with few favorites
-      if (currentUser && newFavorites.length > MAX_LOCAL_FAVORITES) {
-        const userDocRef = doc(db, 'userPreferences', currentUser.uid);
-        
-        // Check if document exists first
-        const userDoc = await getDoc(userDocRef);
-        
-        if (userDoc.exists()) {
-          // Update existing document
-          if (index === -1) {
-            // Add to favorites
-            await updateDoc(userDocRef, {
-              favorites: arrayUnion(songId)
-            });
-          } else {
-            // Remove from favorites
-            await updateDoc(userDocRef, {
-              favorites: arrayRemove(songId)
-            });
-          }
-        } else {
-          // Create new document
-          await setDoc(userDocRef, {
-            favorites: newFavorites,
-            lastUpdated: new Date()
-          });
-        }
-      }
-    } catch (err) {
-      console.error('Error toggling favorite:', err);
-      setError('お気に入りの更新に失敗しました');
-      
-      // Revert state on error
-      const localFavorites = localStorage.getItem('songFavorites');
-      if (localFavorites) {
-        setFavorites(JSON.parse(localFavorites));
-      }
+      console.log('[useFavorites] Saved favorites to localStorage:', newFavorites.length);
+    } catch (error) {
+      console.error('[useFavorites] Failed to save favorites to localStorage:', error);
     }
-  }, [favorites, currentUser]);
-  
-  // Check if a song is in favorites
-  const isFavorite = useCallback((songId: string) => {
-    return favorites.includes(songId);
-  }, [favorites]);
-  
-  // Sync favorites with Firestore (can be called manually)
-  const syncWithFirestore = useCallback(async () => {
-    if (!currentUser) return;
-    
-    try {
-      setLoading(true);
+  }, []);
+
+  // お気に入りの切り替え
+  const toggleFavorite = useCallback((songId: string) => {
+    setFavorites(current => {
+      const newFavorites = current.includes(songId)
+        ? current.filter(id => id !== songId)
+        : [...current, songId];
       
-      const userDocRef = doc(db, 'userPreferences', currentUser.uid);
+      // 非同期で保存
+      try {
+        localStorage.setItem(FAVORITES_STORAGE_KEY, JSON.stringify(newFavorites));
+        console.log('[useFavorites] Toggled favorite for song:', songId, 'isFavorite:', !current.includes(songId));
+      } catch (error) {
+        console.error('[useFavorites] Failed to save favorites to localStorage:', error);
+      }
       
-      await setDoc(userDocRef, {
-        favorites: favorites,
-        lastUpdated: new Date()
-      }, { merge: true });
-      
-      setError(null);
-    } catch (err) {
-      console.error('Error syncing favorites with Firestore:', err);
-      setError('お気に入りの同期に失敗しました');
-    } finally {
-      setLoading(false);
+      return newFavorites;
+    });
+  }, []);
+
+  // お気に入りの追加
+  const addFavorite = useCallback((songId: string) => {
+    if (!favorites.includes(songId)) {
+      const newFavorites = [...favorites, songId];
+      saveFavorites(newFavorites);
     }
-  }, [favorites, currentUser]);
-  
+  }, [favorites, saveFavorites]);
+
+  // お気に入りの削除
+  const removeFavorite = useCallback((songId: string) => {
+    const newFavorites = favorites.filter(id => id !== songId);
+    saveFavorites(newFavorites);
+  }, [favorites, saveFavorites]);
+
+  // 全お気に入りのクリア
+  const clearFavorites = useCallback(() => {
+    saveFavorites([]);
+  }, [saveFavorites]);
+
+  // お気に入りかどうかの判定
+  const isFavorite = useCallback((songId: string) => favorites.includes(songId), [favorites]);
+
   return {
     favorites,
-    loading,
-    error,
     toggleFavorite,
+    addFavorite,
+    removeFavorite,
+    clearFavorites,
     isFavorite,
-    syncWithFirestore
+    loading: false,
+    error: null
   };
 }

@@ -11,6 +11,7 @@ import { ExcelStructure } from '../types/ExcelStructure';
 import { UpdateStatus } from '../types/UpdateStatus';
 import { DEFAULT_DIFFICULTIES } from '../contexts/SongDataContext';
 import { recordUpdate } from './updateService';
+import { getGamesRest, getSongsRest } from './firebaseRest';
 
 // コレクション名の定義
 const GAMES_COLLECTION = 'games';
@@ -47,7 +48,7 @@ export function clearServiceCache(gameId?: string) {
 }
 
 /**
- * ゲーム一覧を取得する
+ * ゲーム一覧を取得する（iOS環境ではREST APIを使用）
  */
 export async function getGames(): Promise<Game[]> {
   const now = Date.now();
@@ -56,32 +57,88 @@ export async function getGames(): Promise<Game[]> {
     return gamesCache;
   }
 
+  // iOS環境での Capacitor 検出
+  const isIOSCapacitor = typeof window !== 'undefined' && 
+    (window as any).Capacitor && 
+    (window as any).Capacitor.getPlatform() === 'ios';
+
+  if (isIOSCapacitor) {
+    console.log('[songService] iOS環境を検出 - REST APIを使用します');
+    try {
+      const gamesData = await getGamesRest();
+      const games = gamesData.map(data => processGameData(data));
+      
+      gamesCache = games;
+      gamesCacheTimestamp = now;
+      console.log('[songService] REST APIでゲーム一覧を取得しました:', games.length, '件');
+      return games;
+    } catch (error) {
+      console.error('[songService] REST API getGames error:', error);
+      throw error;
+    }
+  }
+
   console.log('[songService] ゲーム一覧をFirestoreから取得します。');
-  const gamesSnapshot = await getDocs(collection(db, GAMES_COLLECTION));
-  const games = processGamesSnapshot(gamesSnapshot);
+  console.log('[songService] db instance:', db);
+  console.log('[songService] collection path:', GAMES_COLLECTION);
   
-  gamesCache = games;
-  gamesCacheTimestamp = now;
-  console.log('[songService] ゲーム一覧をインメモリキャッシュに保存しました。');
-  return games;
+  try {
+    console.log('[songService] Creating collection reference...');
+    const gamesCollection = collection(db, GAMES_COLLECTION);
+    console.log('[songService] Collection reference created:', gamesCollection);
+    
+    console.log('[songService] Executing getDocs...');
+    const gamesSnapshot = await getDocs(gamesCollection);
+    console.log('[songService] getDocs completed, snapshot:', gamesSnapshot);
+    console.log('[songService] Documents count:', gamesSnapshot.size);
+    console.log('[songService] Empty snapshot:', gamesSnapshot.empty);
+    
+    const games = processGamesSnapshot(gamesSnapshot);
+    console.log('[songService] Processed games:', games.length);
+    
+    gamesCache = games;
+    gamesCacheTimestamp = now;
+    console.log('[songService] ゲーム一覧をインメモリキャッシュに保存しました。');
+    return games;
+  } catch (error) {
+    console.error('[songService] Firebase getGames error:', error);
+    console.error('[songService] Error details:', {
+      name: (error as Error).name,
+      message: (error as Error).message,
+      code: (error as any).code,
+      stack: (error as Error).stack
+    });
+    throw error;
+  }
 }
 
 function processGamesSnapshot(gamesSnapshot: QuerySnapshot<DocumentData>): Game[] {
   return gamesSnapshot.docs.map(doc => {
     const data = doc.data();
-    return {
+    return processGameData({
       id: doc.id,
-      title: data.title,
-      description: data.description,
-      imageUrl: data.imageUrl,
-      songCount: data.songCount,
-      lastUpdated: data.lastUpdated?.toDate() || new Date(),
-      minLevel: data.minLevel !== undefined ? data.minLevel : 1,
-      maxLevel: data.maxLevel !== undefined ? data.maxLevel : 37,
-      difficulties: data.difficulties || [...DEFAULT_DIFFICULTIES],
-      excelMapping: data.excelMapping || undefined
-    };
+      ...data,
+      lastUpdated: data.lastUpdated?.toDate() || new Date()
+    });
   });
+}
+
+/**
+ * REST APIやFirestoreから取得したゲームデータを統一形式に変換
+ */
+function processGameData(data: any): Game {
+  return {
+    id: data.id,
+    title: data.title,
+    description: data.description,
+    imageUrl: data.imageUrl,
+    songCount: data.songCount,
+    lastUpdated: data.lastUpdated instanceof Date ? data.lastUpdated : new Date(),
+    minLevel: data.minLevel !== undefined ? data.minLevel : 1,
+    maxLevel: data.maxLevel !== undefined ? data.maxLevel : 37,
+    difficulties: data.difficulties || [...DEFAULT_DIFFICULTIES],
+    excelMapping: data.excelMapping || undefined
+  };
 }
 
 /**
@@ -112,7 +169,7 @@ function processGameDoc(data: DocumentData, id: string): Game {
 }
 
 /**
- * 楽曲一覧を取得する
+ * 楽曲一覧を取得する（iOS環境ではREST APIを使用）
  */
 export async function getSongs(gameId: string): Promise<Song[]> {
   const now = Date.now();
@@ -124,6 +181,27 @@ export async function getSongs(gameId: string): Promise<Song[]> {
   if (!gameId) {
     console.error('[songService] getSongs: gameIdが指定されていません');
     return [];
+  }
+
+  // iOS環境での Capacitor 検出
+  const isIOSCapacitor = typeof window !== 'undefined' && 
+    (window as any).Capacitor && 
+    (window as any).Capacitor.getPlatform() === 'ios';
+
+  if (isIOSCapacitor) {
+    console.log(`[songService] iOS環境を検出 - REST APIで楽曲一覧 (${gameId}) を取得します`);
+    try {
+      const songsData = await getSongsRest(gameId);
+      const songs = songsData.map(data => processSongData(data));
+      
+      songsCache[gameId] = songs;
+      songsCacheTimestamp[gameId] = now;
+      console.log(`[songService] REST APIで楽曲一覧 (${gameId}) を取得しました:`, songs.length, '件');
+      return songs;
+    } catch (error) {
+      console.error(`[songService] REST API getSongs error (${gameId}):`, error);
+      throw error;
+    }
   }
   
   console.log(`[songService] 楽曲一覧 (${gameId}) をFirestoreから取得します。`);
@@ -160,19 +238,33 @@ export async function getSongs(gameId: string): Promise<Song[]> {
 function processSongsSnapshot(songsSnapshot: QuerySnapshot<DocumentData>): Song[] {
   return songsSnapshot.docs.map(doc => {
     const data = doc.data();
-    return {
+    return processSongData({
       id: doc.id,
-      gameId: data.gameId,
-      songNo: data.songNo,
-      implementationNo: data.implementationNo,
-      name: data.name,
-      difficulties: data.difficulties,
+      ...data,
       info: {
         ...data.info,
-        addedDate: data.info.addedDate?.toDate()
+        addedDate: data.info?.addedDate?.toDate()
       }
-    };
+    });
   });
+}
+
+/**
+ * REST APIやFirestoreから取得した楽曲データを統一形式に変換
+ */
+function processSongData(data: any): Song {
+  return {
+    id: data.id,
+    gameId: data.gameId,
+    songNo: data.songNo,
+    implementationNo: data.implementationNo,
+    name: data.name,
+    difficulties: data.difficulties,
+    info: {
+      ...data.info,
+      addedDate: data.info?.addedDate instanceof Date ? data.info.addedDate : undefined
+    }
+  };
 }
 
 /**

@@ -1,5 +1,6 @@
 import UIKit
 import Capacitor
+import WebKit
 
 @UIApplicationMain
 class AppDelegate: UIResponder, UIApplicationDelegate {
@@ -8,8 +9,39 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         // Override point for customization after application launch.
+        print("AppDelegate: Application did finish launching")
+        
+        // Create window and ViewController programmatically
+        window = UIWindow(frame: UIScreen.main.bounds)
+        
+        // Create CAPBridgeViewController directly
+        let viewController = CAPBridgeViewController()
+        
+        // Set background color to white initially
+        viewController.view.backgroundColor = UIColor.white
+        
+        window?.rootViewController = viewController
+        window?.makeKeyAndVisible()
+        
+        print("AppDelegate: Window created with CAPBridgeViewController")
+        
+        // Debug WebView loading after a delay
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) {
+            if let webView = viewController.webView {
+                print("AppDelegate: WebView found after 2 seconds")
+                print("AppDelegate: WebView URL: \(String(describing: webView.url))")
+                print("AppDelegate: WebView isLoading: \(webView.isLoading)")
+                
+                // Add navigation delegate to monitor loading
+                webView.navigationDelegate = self
+            } else {
+                print("AppDelegate: ERROR - WebView not found after 2 seconds")
+            }
+        }
+        
         return true
     }
+    
 
     func applicationWillResignActive(_ application: UIApplication) {
         // Sent when the application is about to move from active to inactive state. This can occur for certain types of temporary interruptions (such as an incoming phone call or SMS message) or when the user quits the application and it begins the transition to the background state.
@@ -46,4 +78,24 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         return ApplicationDelegateProxy.shared.application(application, continue: userActivity, restorationHandler: restorationHandler)
     }
 
+}
+
+// MARK: - WKNavigationDelegate
+extension AppDelegate: WKNavigationDelegate {
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        print("AppDelegate: WebView started loading")
+    }
+    
+    func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        print("AppDelegate: WebView finished loading")
+        print("AppDelegate: Final URL: \(String(describing: webView.url))")
+    }
+    
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        print("AppDelegate: WebView failed to load with error: \(error)")
+    }
+    
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        print("AppDelegate: WebView provisional navigation failed with error: \(error)")
+    }
 }

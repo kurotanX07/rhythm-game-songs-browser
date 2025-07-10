@@ -28,7 +28,7 @@ const Footer: React.FC = () => {
           <Link component={RouterLink} to="/" color="inherit">
             ホーム
           </Link>
-          <Link component={RouterLink} to="/privacy-policy" color="inherit">
+          <Link component={RouterLink} to="/privacy" color="inherit">
             プライバシーポリシー
           </Link>
         </Stack>

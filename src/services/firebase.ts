@@ -1,7 +1,8 @@
 import { initializeApp } from 'firebase/app';
 import { 
   getFirestore, 
-  connectFirestoreEmulator 
+  connectFirestoreEmulator,
+  initializeFirestore
 } from 'firebase/firestore';
 import { getStorage, connectStorageEmulator } from 'firebase/storage';
 import { getAuth, connectAuthEmulator } from 'firebase/auth';
@@ -18,11 +19,44 @@ const firebaseConfig = {
   appId: process.env.REACT_APP_FIREBASE_APP_ID || "1:884744923644:web:676f24c3c8de5610932a79"
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase with detailed logging
+console.log('[firebase] Initializing Firebase app...');
+console.log('[firebase] Config:', {
+  apiKey: firebaseConfig.apiKey ? '***' : 'missing',
+  authDomain: firebaseConfig.authDomain,
+  projectId: firebaseConfig.projectId,
+  storageBucket: firebaseConfig.storageBucket,
+  messagingSenderId: firebaseConfig.messagingSenderId,
+  appId: firebaseConfig.appId ? '***' : 'missing'
+});
 
-// Firestoreインスタンスの初期化を元に戻す
-export const db = getFirestore(app);
+const app = initializeApp(firebaseConfig);
+console.log('[firebase] Firebase app initialized');
+
+// iOS WebView環境検出とFirestore初期化
+const isIOSWebView = typeof window !== 'undefined' && (window as any).Capacitor && (window as any).Capacitor.getPlatform() === 'ios';
+
+let db: any;
+
+if (isIOSWebView) {
+  console.log('[firebase] iOS WebView環境を検出 - 最適化された設定でFirestoreを初期化');
+  
+  // iOS WebView向けの最適化設定
+  const iOSSettings = {
+    experimentalForceLongPolling: true, // WebSocket問題を回避
+    cacheSizeBytes: 1048576, // 1MB - メモリ使用量を削減
+    ignoreUndefinedProperties: true,
+  };
+  
+  console.log('[firebase] iOS向けFirestore設定:', iOSSettings);
+  db = initializeFirestore(app, iOSSettings);
+} else {
+  console.log('[firebase] 通常環境でFirestoreを初期化');
+  db = getFirestore(app);
+}
+
+export { db };
+console.log('[firebase] Firestore initialized:', db);
 
 // バックワードコンパティビリティのために、getFirestoreも可能にしておく（必要に応じて）
 // const firestoreCompat = getFirestore(app);

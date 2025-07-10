@@ -1,6 +1,6 @@
 {
   "name": "rhythm-game-songs-browser",
-  "version": "0.1.2",
+  "version": "1.0.1",
   "private": true,
   "dependencies": {
     "@capacitor-community/admob": "^7.0.3",

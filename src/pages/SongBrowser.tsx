@@ -10,7 +10,7 @@ import LockIcon from '@mui/icons-material/Lock';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
 import ResponsiveLayout from '../components/layout/ResponsiveLayout';
-import SEO from '../components/common/SEO';
+// import SEO from '../components/common/SEO';
 import GameSelector from '../components/user/GameSelector';
 import FilterControls, { FilterOptions } from '../components/user/FilterControls';
 import SongList from '../components/user/SongList';
@@ -20,12 +20,13 @@ import { useAuth } from '../contexts/AuthContext'; // Import auth context
 import { Game } from '../types/Game';
 import ErrorBoundary from '../components/common/ErrorBoundary';
 import AdComponent from '../components/ads/AdComponent'; // Import ad component
-import { useAds } from '../contexts/AdContext'; // Import ad context
+// import { useAds } from '../contexts/AdContext'; // Import ad context
 
 const SongBrowser: React.FC = () => {
   const { games, selectedGameId, songs, loading, error, selectGame } = useSongData();
   const { isPremium, isAdmin, currentUser } = useAuth(); // Get user premium status
-  const { showAds } = useAds(); // Get ad display status
+  // const { showAds } = useAds(); // Get ad display status
+  const showAds = false; // 一時的に無効化
   const theme = useTheme(); // Add theme hook
   const isMobile = useMediaQuery(theme.breakpoints.down('sm')); // Define isMobile
   
@@ -190,10 +191,10 @@ const SongBrowser: React.FC = () => {
   
   return (
     <>
-      <SEO 
+      {/* <SEO 
         title="楽曲一覧" 
         description="リズムゲームの楽曲一覧と詳細情報"
-      />
+      /> */}
       <Header />
       <ResponsiveLayout>
         {/* Top Ad Banner - only for non-premium users */}

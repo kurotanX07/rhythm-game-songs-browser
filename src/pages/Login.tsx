@@ -7,8 +7,9 @@ import {
 import LockOutlinedIcon from '@mui/icons-material/LockOutlined';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
-import SEO from '../components/common/SEO';
+// import SEO from '../components/common/SEO';
 import { useAuth } from '../contexts/AuthContext';
+import { useEffect } from 'react';
 
 interface LocationState {
   from?: {
@@ -22,11 +23,19 @@ const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   
-  const { signIn } = useAuth();
+  const { signIn, currentUser } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const locationState = location.state as LocationState;
   const from = locationState?.from?.pathname || '/';
+  
+  // 既にログインしている場合はリダイレクト
+  useEffect(() => {
+    if (currentUser) {
+      console.log('[Login] User already logged in, redirecting to:', from);
+      navigate(from);
+    }
+  }, [currentUser, from, navigate]);
   
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,19 +48,39 @@ const Login: React.FC = () => {
     try {
       setError('');
       setLoading(true);
+      console.log('[Login] Attempting to sign in with email:', email);
       await signIn(email, password);
-      navigate(from);
+      console.log('[Login] Sign in successful');
+      // ナビゲーションはuseEffectで処理される
     } catch (err: any) {
-      console.error('Login error:', err);
-      setError('ログインに失敗しました。メールアドレスとパスワードを確認してください');
-    } finally {
+      console.error('[Login] Login error:', err);
+      console.error('[Login] Error code:', err.code);
+      console.error('[Login] Error message:', err.message);
+      
+      // Firebase認証エラーコードに基づいたメッセージ
+      let errorMessage = 'ログインに失敗しました。';
+      if (err.code === 'auth/user-not-found') {
+        errorMessage = 'このメールアドレスは登録されていません。';
+      } else if (err.code === 'auth/wrong-password') {
+        errorMessage = 'パスワードが正しくありません。';
+      } else if (err.code === 'auth/invalid-email') {
+        errorMessage = 'メールアドレスの形式が正しくありません。';
+      } else if (err.code === 'auth/user-disabled') {
+        errorMessage = 'このアカウントは無効化されています。';
+      } else if (err.code === 'auth/too-many-requests') {
+        errorMessage = 'ログイン試行が多すぎます。しばらく待ってからお試しください。';
+      } else {
+        errorMessage = `ログインに失敗しました: ${err.message}`;
+      }
+      
+      setError(errorMessage);
       setLoading(false);
     }
   };
   
   return (
     <>
-      <SEO title="ログイン" />
+      {/* <SEO title="ログイン" /> */}
       <Header />
       <Container maxWidth="xs" sx={{ my: 8 }}>
         <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
@@ -78,16 +107,12 @@ const Login: React.FC = () => {
             </Box>
             
             <Typography component="h1" variant="h5">
-              ログイン
+              管理者ログイン
             </Typography>
             
             <Typography variant="body2" color="textSecondary" sx={{ mt: 1, textAlign: 'center' }}>
-              現在は管理者のみログイン可能です
+              管理者専用のログイン画面です
             </Typography>
-            
-            <Alert severity="info" sx={{ mt: 2, width: '100%' }}>
-              有料会員機能はまだご利用いただけません。現在は管理者のみがログイン可能です。
-            </Alert>
             
             {error && (
               <Alert severity="error" sx={{ mt: 2, width: '100%' }}>

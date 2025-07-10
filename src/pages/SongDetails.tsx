@@ -24,42 +24,32 @@ const SongDetails: React.FC = () => {
   
   // Find song and game from the context
   useEffect(() => {
+    console.log('[SongDetails] useEffect:', { songId, loading, songsCount: songs.length, gamesCount: games.length });
+    
     if (!songId || loading) return;
     
-    // 楽曲IDからゲームIDを抽出（{gameId}_{songNo}の形式）
-    const gameIdMatch = songId.match(/^(.+)_\d+$/);
-    const gameId = gameIdMatch ? gameIdMatch[1] : null;
-    
+    console.log('[SongDetails] Searching for song:', songId);
     const foundSong = songs.find(s => s.id === songId);
+    console.log('[SongDetails] Found song:', foundSong ? foundSong.name : 'Not found');
     
     if (foundSong) {
       // 楽曲が見つかった場合
       setSong(foundSong);
       const foundGame = games.find(g => g.id === foundSong.gameId);
+      console.log('[SongDetails] Found game:', foundGame ? foundGame.title : 'Not found');
       if (foundGame) {
         setGame(foundGame);
       } else {
         setGame(null);
       }
-    } else if (gameId) {
-      // 楽曲が見つからなかった場合、制限なしで再取得を試みる
-      refreshSongs(gameId).then(() => {
-        // 再取得後に再度検索
-        const refreshedSong = songs.find(s => s.id === songId);
-        if (refreshedSong) {
-          setSong(refreshedSong);
-          const foundGame = games.find(g => g.id === refreshedSong.gameId);
-          if (foundGame) {
-            setGame(foundGame);
-          }
-        } else {
-          setSong(null);
-        }
-      });
     } else {
+      // 楽曲が見つからなかった場合
+      console.log('[SongDetails] 楽曲が見つかりません:', songId);
+      console.log('[SongDetails] Available songs:', songs.map(s => s.id).slice(0, 10));
       setSong(null);
+      setGame(null);
     }
-  }, [songId, songs, games, loading, refreshSongs]);
+  }, [songId, songs, games, loading]);
   
   const handleBack = () => {
     navigate(-1);

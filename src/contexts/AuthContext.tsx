@@ -35,16 +35,27 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
   const [isPremium, setIsPremium] = useState<boolean>(false);
   
+  console.log('[AuthContext] Provider initialized');
+  
   useEffect(() => {
+    console.log('[AuthContext] Setting up auth state listener');
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      console.log('[AuthContext] Auth state changed:', user?.uid || 'No user');
       setCurrentUser(user);
       
       if (user) {
-        // ユーザーがadmin権限を持っているか確認
-        const token = await user.getIdTokenResult();
-        setIsAdmin(!!token.claims.admin);
-        // ユーザーがpremium権限を持っているか確認
-        setIsPremium(!!token.claims.premium);
+        try {
+          // ユーザーがadmin権限を持っているか確認
+          const token = await user.getIdTokenResult();
+          setIsAdmin(!!token.claims.admin);
+          // ユーザーがpremium権限を持っているか確認
+          setIsPremium(!!token.claims.premium);
+          console.log('[AuthContext] User permissions loaded - admin:', !!token.claims.admin, 'premium:', !!token.claims.premium);
+        } catch (error) {
+          console.error('[AuthContext] Error loading user permissions:', error);
+          setIsAdmin(false);
+          setIsPremium(false);
+        }
       } else {
         setIsAdmin(false);
         setIsPremium(false);
@@ -58,7 +69,17 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   
   // ログイン
   async function signIn(email: string, password: string): Promise<void> {
-    await signInWithEmailAndPassword(auth, email, password);
+    console.log('[AuthContext] Signing in user...');
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      console.log('[AuthContext] Sign in successful, user:', userCredential.user.uid);
+      
+      // ユーザーの権限が更新されるまで少し待つ
+      await new Promise(resolve => setTimeout(resolve, 100));
+    } catch (error) {
+      console.error('[AuthContext] Sign in failed:', error);
+      throw error;
+    }
   }
   
   // ログアウト
@@ -83,7 +104,7 @@ export function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   
   return (
     <AuthContext.Provider value={value}>
-      {!loading && children}
+      {children}
     </AuthContext.Provider>
   );
 }

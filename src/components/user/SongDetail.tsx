@@ -43,11 +43,26 @@ const SongDetail: React.FC<SongDetailProps> = ({ song, game }) => {
   
   // Select first available difficulty on load
   React.useEffect(() => {
-    if (availableDifficulties.length > 0 && 
+    if (sortedDifficulties.length > 0 && 
         (!selectedDifficulty || !song.difficulties[selectedDifficulty])) {
-      setSelectedDifficulty(availableDifficulties[0].id);
+      // まず、動画がある難易度を優先
+      const diffWithVideo = sortedDifficulties.find(diff => {
+        const diffInfo = song.difficulties[diff.id];
+        return diffInfo && diffInfo.level !== null && diffInfo.youtubeUrl;
+      });
+      
+      // 動画がある難易度がない場合は、レベルがある最初の難易度
+      const diffWithLevel = sortedDifficulties.find(diff => {
+        const diffInfo = song.difficulties[diff.id];
+        return diffInfo && diffInfo.level !== null;
+      });
+      
+      const targetDifficulty = diffWithVideo || diffWithLevel;
+      if (targetDifficulty) {
+        setSelectedDifficulty(targetDifficulty.id);
+      }
     }
-  }, [song, availableDifficulties, selectedDifficulty]);
+  }, [song, sortedDifficulties, selectedDifficulty]);
   
   // Difficulty tab change handler
   const handleDifficultyChange = (_: React.SyntheticEvent, newValue: string) => {
@@ -250,34 +265,93 @@ const SongDetail: React.FC<SongDetailProps> = ({ song, game }) => {
               onChange={handleDifficultyChange}
               aria-label="difficulty tabs"
               sx={{ mb: 2 }}
+              variant="scrollable"
+              scrollButtons="auto"
             >
-              {availableDifficulties.map(diff => {
+              {sortedDifficulties.map(diff => {
                 const diffInfo = song.difficulties[diff.id];
+                const hasVideo = diffInfo && diffInfo.youtubeUrl;
+                const hasLevel = diffInfo && diffInfo.level !== null && diffInfo.level !== undefined;
+                
                 return (
                   <Tab 
                     key={diff.id} 
-                    label={diff.name} 
+                    label={
+                      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Box
+                          sx={{
+                            width: 12,
+                            height: 12,
+                            borderRadius: '50%',
+                            backgroundColor: diff.color,
+                          }}
+                        />
+                        {diff.name}
+                        {hasLevel && (
+                          <Box sx={{ 
+                            fontSize: '0.75rem', 
+                            color: 'text.secondary',
+                            ml: 0.5 
+                          }}>
+                            Lv.{diffInfo.level}
+                          </Box>
+                        )}
+                        {hasVideo && (
+                          <Box sx={{ 
+                            fontSize: '0.6rem',
+                            backgroundColor: 'red',
+                            color: 'white',
+                            px: 0.5,
+                            py: 0.2,
+                            borderRadius: 0.5,
+                            ml: 0.5
+                          }}>
+                            動画
+                          </Box>
+                        )}
+                      </Box>
+                    }
                     value={diff.id} 
-                    disabled={!diffInfo || !diffInfo.youtubeUrl}
+                    disabled={!hasLevel}
                     sx={{
-                      color: diffInfo && diffInfo.youtubeUrl 
-                        ? diff.color 
+                      color: hasLevel 
+                        ? (hasVideo ? 'primary.main' : 'text.primary')
                         : 'text.disabled',
-                      fontWeight: 'bold'
+                      fontWeight: hasVideo ? 'bold' : 'normal',
+                      minWidth: 'auto',
+                      opacity: hasLevel ? 1 : 0.5
                     }}
                   />
                 );
               })}
             </Tabs>
             
-            {currentDiffInfo && currentDiffInfo.youtubeUrl ? (
+            {currentDiffInfo ? (
               <Box sx={{ mt: 2 }}>
-                <YouTubePlayer url={currentDiffInfo.youtubeUrl} />
+                {currentDiffInfo.youtubeUrl ? (
+                  <>
+                    <Box sx={{ mb: 2, p: 2, bgcolor: 'grey.50', borderRadius: 1 }}>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                        {getDifficultyDefinition(selectedDifficulty)?.name} - レベル {currentDiffInfo.level}
+                        {currentDiffInfo.combo && ` (${currentDiffInfo.combo} combo)`}
+                      </Typography>
+                    </Box>
+                    <YouTubePlayer url={currentDiffInfo.youtubeUrl} />
+                  </>
+                ) : (
+                  <Box sx={{ p: 3, textAlign: 'center', bgcolor: 'grey.50', borderRadius: 1 }}>
+                    <Typography variant="body1" color="text.secondary">
+                      {getDifficultyDefinition(selectedDifficulty)?.name} (レベル {currentDiffInfo.level}) のプレイ動画はありません。
+                    </Typography>
+                  </Box>
+                )}
               </Box>
             ) : (
-              <Typography variant="body1" color="text.secondary">
-                この難易度のプレイ動画はありません。
-              </Typography>
+              <Box sx={{ p: 3, textAlign: 'center', bgcolor: 'grey.50', borderRadius: 1 }}>
+                <Typography variant="body1" color="text.secondary">
+                  この難易度は実装されていません。
+                </Typography>
+              </Box>
             )}
           </Box>
         </CardContent>

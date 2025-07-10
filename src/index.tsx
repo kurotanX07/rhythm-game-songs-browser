@@ -4,22 +4,25 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
-// デバッグログを削除
-// console.log(`アプリケーション起動: ${new Date().toLocaleString()}`);
-// console.log('キャッシュ機能が有効になりました');
+console.log('Index.tsx: Script starting');
+console.log('Index.tsx: Document ready state:', document.readyState);
 
-const root = ReactDOM.createRoot(
-  document.getElementById('root') as HTMLElement
-);
+const rootElement = document.getElementById('root');
+console.log('Index.tsx: Root element:', rootElement);
 
-// StrictModeのコメントアウトを解除
-root.render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+if (!rootElement) {
+  console.error('Index.tsx: Root element not found!');
+} else {
+  console.log('Index.tsx: Root element found, creating React root');
+  const root = ReactDOM.createRoot(rootElement);
+  
+  console.log('Index.tsx: About to render App component');
+  root.render(
+    <React.StrictMode>
+      <App />
+    </React.StrictMode>
+  );
+  console.log('Index.tsx: App component rendered');
+}
 
-// If you want to start measuring performance in your app, pass a function
-// to log results (for example: reportWebVitals(console.log))
-// or send to an analytics endpoint. Learn more: https://bit.ly/CRA-vitals
 reportWebVitals();
