@@ -81,11 +81,11 @@ const App: React.FC = () => {
     // ネイティブプラットフォーム（Android/iOS）の場合のみ広告を初期化
     const initializeAdMob = async () => {
       try {
-        // iOSでApp Tracking Transparencyを要求
-        if (Capacitor.getPlatform() === 'ios') {
-          await AdMob.requestTrackingAuthorization();
-          console.log("Tracking authorization requested");
-        }
+        // App Tracking Transparencyは使用しない（トラッキングを行わないため）
+        // if (Capacitor.getPlatform() === 'ios') {
+        //   await AdMob.requestTrackingAuthorization();
+        //   console.log("Tracking authorization requested");
+        // }
         
         await AdMob.initialize();
         console.log("AdMob initialized");

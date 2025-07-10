@@ -19,7 +19,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>1.0.1</string>
 	<key>CFBundleVersion</key>
-	<string>2</string>
+	<string>3</string>
 	<key>GADApplicationIdentifier</key>
 	<string>ca-app-pub-5830241925260790~8333536116</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
@@ -63,8 +63,6 @@
 			</dict>
 		</dict>
 	</dict>
-	<key>NSUserTrackingUsageDescription</key>
-	<string>このアプリは、より良い広告体験を提供するために、あなたの活動を追跡することがあります。</string>
 	<key>SKAdNetworkItems</key>
 	<array>
 		<dict>
