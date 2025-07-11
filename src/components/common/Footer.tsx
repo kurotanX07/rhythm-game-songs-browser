@@ -37,7 +37,7 @@ const Footer: React.FC = () => {
           {new Date().getFullYear()}
           {' '}
           <Link color="inherit" href="/">
-            親指研究所スァう
+            親指研究所
           </Link>
           {' - All rights reserved.'}
         </Typography>
