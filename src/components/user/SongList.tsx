@@ -505,17 +505,17 @@ const SongList: React.FC<SongListProps> = ({
                                 {hasYoutube && (
                                   <Tooltip title={`${diff.name} YouTube`}>
                                     <IconButton 
-                                      size="small"
+                                      size="medium"
                                       onClick={() => songDiff.youtubeUrl && window.open(songDiff.youtubeUrl, '_blank')}
                                       sx={{
                                         color: diff.color,
-                                        padding: '2px',
+                                        padding: '4px',
                                         '&:hover': {
                                           backgroundColor: 'rgba(255,0,0,0.1)'
                                         }
                                       }}
                                     >
-                                      <YouTubeIcon sx={{ fontSize: '14px' }} />
+                                      <YouTubeIcon sx={{ fontSize: '18px' }} />
                                     </IconButton>
                                   </Tooltip>
                                 )}
@@ -630,13 +630,13 @@ const SongList: React.FC<SongListProps> = ({
                                       onClick={() => songDiff.youtubeUrl && window.open(songDiff.youtubeUrl, '_blank')}
                                       sx={{
                                         color: diff.color,
-                                        padding: '1px',
+                                        padding: '3px',
                                         '&:hover': {
                                           backgroundColor: 'rgba(255,0,0,0.1)'
                                         }
                                       }}
                                     >
-                                      <YouTubeIcon sx={{ fontSize: '12px' }} />
+                                      <YouTubeIcon sx={{ fontSize: '16px' }} />
                                     </IconButton>
                                   </Tooltip>
                                 )}
